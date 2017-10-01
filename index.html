@@ -1,0 +1,24 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta charset="UTF-8">
+        <title>Main</title>
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <script src="elm.js"></script>
+        <script type="text/javascript">
+            var token = window.localStorage.getItem("jwt");
+            var app = Elm.Main.fullscreen({
+                api_token: token
+            });
+            app.ports.remember.subscribe(function(pair) {
+                window.localStorage.setItem(pair[0], pair[1]);
+            });
+            app.ports.forget.subscribe(function(key) {
+                window.localStorage.removeItem(key);
+            });
+        </script>
+    </body>
+</html>
