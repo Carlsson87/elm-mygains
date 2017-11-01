@@ -1,25 +1,30 @@
 port module Main exposing (..)
 
 import Array exposing (Array)
-import Data exposing (..)
-import Date
-import Html exposing (Html)
-import Html.Attributes exposing (class, disabled, style, type_, value)
+import Data.Exercise exposing (..)
+import Data.Workout as Workout exposing (..)
+import Date exposing (Date)
+import Html exposing (Html, programWithFlags)
+import Html.Attributes exposing (class, disabled, min, pattern, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Navigation exposing (Location, newUrl, programWithFlags)
+import Process
 import Requests
     exposing
         ( createWorkout
         , getExercises
+        , getWorkouts
         , login
         , refreshToken
         )
-import Route exposing (..)
 import Task
+import Time
 import Utils exposing (..)
+
+
+-- Ports
 
 
 port remember : ( String, String ) -> Cmd msg
@@ -28,19 +33,19 @@ port remember : ( String, String ) -> Cmd msg
 port forget : String -> Cmd msg
 
 
-saveToken token =
+rememberToken : String -> Cmd Msg
+rememberToken token =
     remember ( "jwt", token )
 
 
-removeToken =
+forgetToken : Cmd Msg
+forgetToken =
     forget "jwt"
 
 
+main : Program Decode.Value Model Msg
 main =
     programWithFlags
-        (locationToRoute
-            >> SetRoute
-        )
         { init = init
         , view = view
         , update = update
@@ -48,308 +53,422 @@ main =
         }
 
 
-type alias Model =
-    { sidebarIsOpen : Bool
+type Model
+    = LoggedIn LoggedInState
+    | LoggedOut LoggedOutState
+
+
+type RemoteData a e
+    = NotAsked
+    | Loading
+    | Success a
+    | Error e
+
+
+type SetAnimation
+    = CloningSet Int
+    | RemovingSet Int
+    | AddingSet Int
+
+
+type alias LoggedInState =
+    { token : String
     , exercises : List Exercise
-    , workout : EditableWorkout
-    , page : Route
-    , api_token : Maybe String
-    , login_form : LoginForm
+    , workout : Workout
+    , date : Date
+    , sidebarIsOpen : Bool
+    , workoutSavedState : RemoteData CompletedWorkout String
+    , setAnimation : Maybe SetAnimation
     }
 
 
-type alias LoginForm =
-    { username : String
+type alias LoggedOutState =
+    { email : String
     , password : String
-    , in_progress : Bool
-    , error_message : Maybe String
+    , logging_in : Bool
+    , error : Maybe String
     }
 
 
-init : Decode.Value -> Location -> ( Model, Cmd Msg )
-init flags loc =
+initialModel : Model
+initialModel =
+    LoggedOut (LoggedOutState "" "" False Nothing)
+
+
+init : Decode.Value -> ( Model, Cmd Msg )
+init flags =
     let
-        handler =
-            Result.map (TokenRefreshSucceeded (locationToRoute loc))
-                >> Result.withDefault TokenRefreshFailed
+        token : Maybe (Task.Task Http.Error String)
+        token =
+            flags
+                |> Decode.decodeValue (Decode.field "api_token" Decode.string)
+                |> Result.map refreshToken
+                |> Result.toMaybe
+                |> Maybe.map Http.toTask
+
+        date : Task.Task x Date
+        date =
+            Date.now
+
+        exercises : String -> Task.Task Http.Error (List Exercise)
+        exercises =
+            getExercises >> Http.toTask
+
+        workout : List Exercise -> Workout
+        workout exs =
+            flags
+                |> Decode.decodeValue (Decode.field "workout" Decode.string)
+                |> Result.andThen (Decode.decodeString decodeWorkout)
+                |> Result.toMaybe
+                |> Maybe.andThen (makeEditable exs)
+                |> Maybe.withDefault Workout.empty
+
+        makeLogin : List Exercise -> Date -> String -> LoggedInState
+        makeLogin exs date token =
+            LoggedInState token exs (workout exs) date False NotAsked Nothing
+
+        attemptLogin : String -> Task.Task Http.Error LoggedInState
+        attemptLogin token =
+            Task.map3 makeLogin (exercises token) date (Task.succeed token)
     in
-    flags
-        |> Decode.decodeValue (Decode.field "api_token" Decode.string)
-        |> Result.map (refreshToken >> Http.send handler)
-        |> Result.map (\cmd -> ( model Loading Nothing, cmd ))
-        |> Result.withDefault ( model Login Nothing, newUrl (routeToUrl Login) )
-
-
-emptyLoginForm =
-    LoginForm "" "" False Nothing
+    ( initialModel
+    , Maybe.map (Task.andThen attemptLogin) token
+        |> Maybe.map (Task.attempt (LoggedOutMsg << LoginCompleted))
+        |> Maybe.withDefault Cmd.none
+    )
 
 
 type Msg
     = Noop
-    | TokenRefreshFailed
-    | TokenRefreshSucceeded Route String
-    | UpdateUsername String
-    | UpdatePassword String
-    | SendLoginRequest
-    | UserLoggedIn String
-    | LoginFailed String
-    | ToggleSidebar
+    | LoggedInMsg LoggedInAction
+    | LoggedOutMsg LoggedOutAction
+
+
+type LoggedInAction
+    = ToggleSidebar
     | AddSet Exercise
+    | SetWasAdded
     | UpdateReps Int String
     | UpdateWeight Int String
     | CloneSet Int
+    | SetWasCloned
     | RemoveSet Int
+    | SetWasRemoved Int
     | SaveWorkout
-    | SetRoute Route
-    | SetExercises (List Exercise)
-    | NavigateTo Route
+    | WorkoutSaved
+    | UpdateDate String
 
 
-model route token =
-    Model
-        True
-        []
-        (EditableWorkout Array.empty)
-        route
-        token
-        emptyLoginForm
+type LoggedOutAction
+    = UpdateEmail String
+    | UpdatePassword String
+    | SendLoginRequest
+    | LoginCompleted (Result Http.Error LoggedInState)
 
 
-loadData token =
-    let
-        exerciseHandler exs =
-            exs
-                |> Result.map SetExercises
-                |> Result.withDefault Noop
-    in
-    Cmd.batch
-        [ Http.send exerciseHandler (getExercises token)
-        ]
+saveWorkout : String -> Date -> Workout -> Cmd Msg
+saveWorkout token date workout =
+    encodeWorkout date workout
+        |> Maybe.map (createWorkout token)
+        |> Maybe.map Http.toTask
+        |> Maybe.withDefault (Task.succeed 0)
+        |> Task.attempt
+            (\res ->
+                case res of
+                    Err _ ->
+                        Noop
+
+                    Ok _ ->
+                        LoggedInMsg WorkoutSaved
+            )
 
 
-saveWorkout : Model -> Cmd Msg
-saveWorkout { workout, api_token } =
-    case api_token of
-        Just token ->
-            Task.attempt (always Noop)
-                (Date.now
-                    |> Task.map (toValidWorkout workout)
-                    |> Task.map (Maybe.map (createWorkout token))
-                    |> Task.map (Maybe.map Http.toTask)
-                    |> Task.andThen (Maybe.withDefault (Task.succeed 0))
-                )
+rememberWorkout : Workout -> Date -> Cmd Msg
+rememberWorkout w d =
+    encodeWorkout d w
+        |> Maybe.map (Encode.encode 0)
+        |> Maybe.map (\str -> remember ( "workout", str ))
+        |> Maybe.withDefault Cmd.none
 
-        Nothing ->
-            Cmd.none
+
+forgetWorkout : Cmd Msg
+forgetWorkout =
+    forget "workout"
+
+
+loggedInUpdate : LoggedInAction -> LoggedInState -> ( Model, Cmd Msg )
+loggedInUpdate msg model =
+    case msg of
+        ToggleSidebar ->
+            ( LoggedIn { model | sidebarIsOpen = not model.sidebarIsOpen }, Cmd.none )
+
+        SaveWorkout ->
+            ( LoggedIn { model | workoutSavedState = Loading }, saveWorkout model.token model.date model.workout )
+
+        WorkoutSaved ->
+            ( LoggedIn { model | workout = Workout.empty }, forgetWorkout )
+
+        AddSet ex ->
+            let
+                workout =
+                    addEmptySet ex model.workout
+            in
+            ( LoggedIn { model | workout = workout, setAnimation = Just (AddingSet (List.length (Workout.sets workout) - 1)) }
+            , Cmd.batch
+                [ rememberWorkout workout model.date
+                , delay 300 (LoggedInMsg SetWasAdded)
+                ]
+            )
+
+        SetWasAdded ->
+            ( LoggedIn { model | setAnimation = Nothing }, Cmd.none )
+
+        UpdateReps index reps ->
+            let
+                workout =
+                    updateReps reps index model.workout
+            in
+            ( LoggedIn { model | workout = workout }, rememberWorkout workout model.date )
+
+        UpdateWeight index weight ->
+            let
+                workout =
+                    updateWeight weight index model.workout
+            in
+            ( LoggedIn { model | workout = workout }, rememberWorkout workout model.date )
+
+        CloneSet index ->
+            let
+                workout =
+                    copySet index model.workout
+            in
+            ( LoggedIn { model | workout = workout, setAnimation = Just (CloningSet index) }
+            , Cmd.batch
+                [ rememberWorkout workout model.date
+                , delay 300 (LoggedInMsg SetWasCloned)
+                ]
+            )
+
+        SetWasCloned ->
+            ( LoggedIn { model | setAnimation = Nothing }, Cmd.none )
+
+        RemoveSet index ->
+            ( LoggedIn { model | setAnimation = Just (RemovingSet index) }, delay 300 (LoggedInMsg (SetWasRemoved index)) )
+
+        SetWasRemoved index ->
+            let
+                workout =
+                    removeSet index model.workout
+            in
+            ( LoggedIn { model | workout = workout, setAnimation = Nothing }, rememberWorkout workout model.date )
+
+        UpdateDate date ->
+            ( LoggedIn { model | date = Result.withDefault model.date (Date.fromString date) }, Cmd.none )
+
+
+delay : Float -> msg -> Cmd msg
+delay ms msg =
+    Process.sleep (ms * Time.millisecond)
+        |> Task.perform (always msg)
+
+
+loggedOutUpdate : LoggedOutAction -> LoggedOutState -> ( Model, Cmd Msg )
+loggedOutUpdate msg model =
+    case msg of
+        UpdateEmail str ->
+            ( LoggedOut { model | email = str }, Cmd.none )
+
+        UpdatePassword str ->
+            ( LoggedOut { model | password = str }, Cmd.none )
+
+        SendLoginRequest ->
+            let
+                request =
+                    login model.email model.password
+                        |> Http.toTask
+                        |> Task.andThen
+                            (\token ->
+                                Http.toTask (getExercises token)
+                                    |> Task.andThen
+                                        (\exs ->
+                                            Date.now
+                                                |> Task.map (\date -> LoggedInState token exs Workout.empty date False NotAsked Nothing)
+                                        )
+                            )
+                        |> Task.attempt (LoggedOutMsg << LoginCompleted)
+            in
+            ( LoggedOut { model | logging_in = True }, request )
+
+        LoginCompleted (Ok model) ->
+            ( LoggedIn model, rememberToken model.token )
+
+        LoginCompleted (Err _) ->
+            ( LoggedOut { model | error = Just "Cant log in" }, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        Noop ->
+    case ( msg, model ) of
+        ( LoggedInMsg msg, LoggedIn model ) ->
+            loggedInUpdate msg model
+
+        ( LoggedOutMsg msg, LoggedOut model ) ->
+            loggedOutUpdate msg model
+
+        ( _, _ ) ->
+            let
+                log =
+                    Debug.log "Unrecognized msg model combo" ( msg, model )
+            in
             ( model, Cmd.none )
-
-        NavigateTo route ->
-            ( model, newUrl (routeToUrl route) )
-
-        SetExercises exs ->
-            ( { model | exercises = exs }, Cmd.none )
-
-        UserLoggedIn token ->
-            ( { model | api_token = Just token }
-            , Cmd.batch
-                [ newUrl (routeToUrl Workout)
-                , loadData token
-                , saveToken token
-                ]
-            )
-
-        TokenRefreshFailed ->
-            ( { model | api_token = Nothing }
-            , Cmd.batch
-                [ newUrl (routeToUrl Login)
-                , removeToken
-                ]
-            )
-
-        TokenRefreshSucceeded route token ->
-            ( { model | api_token = Just token, page = route }
-            , Cmd.batch
-                [ saveToken token
-                , loadData token
-                ]
-            )
-
-        LoginFailed msg ->
-            let
-                loginForm =
-                    model.login_form
-            in
-            ( { model | login_form = { loginForm | error_message = Just msg, in_progress = False } }, Cmd.none )
-
-        ToggleSidebar ->
-            ( { model | sidebarIsOpen = not model.sidebarIsOpen }, Cmd.none )
-
-        SaveWorkout ->
-            ( model, saveWorkout model )
-
-        AddSet ex ->
-            ( { model | workout = addSet ex model.workout }, Cmd.none )
-
-        UpdateReps index reps ->
-            ( { model | workout = updateReps reps index model.workout }, Cmd.none )
-
-        UpdateWeight index weight ->
-            ( { model | workout = updateWeight weight index model.workout }, Cmd.none )
-
-        CloneSet index ->
-            ( { model | workout = cloneSet index model.workout }, Cmd.none )
-
-        RemoveSet index ->
-            ( { model | workout = removeSet index model.workout }, Cmd.none )
-
-        SetRoute route ->
-            ( { model | page = route }, Cmd.none )
-
-        UpdateUsername str ->
-            let
-                loginForm =
-                    model.login_form
-            in
-            ( { model | login_form = { loginForm | username = str } }, Cmd.none )
-
-        UpdatePassword str ->
-            let
-                loginForm =
-                    model.login_form
-            in
-            ( { model | login_form = { loginForm | password = str } }, Cmd.none )
-
-        SendLoginRequest ->
-            let
-                loginForm =
-                    model.login_form
-
-                handler res =
-                    case res of
-                        Ok token ->
-                            UserLoggedIn token
-
-                        Err _ ->
-                            LoginFailed ""
-            in
-            ( { model | login_form = { loginForm | in_progress = True } }
-            , Http.send handler (login model.login_form.username model.login_form.password)
-            )
-
-
-
--- View
 
 
 view : Model -> Html Msg
 view model =
-    case model.page of
-        Loading ->
-            Html.text "Loading..."
+    case model of
+        LoggedOut state ->
+            Html.map LoggedOutMsg
+                (Html.div
+                    []
+                    [ loginForm state
+                    ]
+                )
 
-        NotFound ->
-            Html.text "404"
-
-        Login ->
-            case model.api_token of
-                Just _ ->
-                    alreadyLoggedInView
-
-                Nothing ->
-                    loginForm model
-
-        Workout ->
-            Html.div
-                [ class "padding-1"
-                , style [ ( "margin-bottom", "100px" ) ]
-                ]
-                [ addButton
-                , sidebar model.exercises model.sidebarIsOpen
-                , setList model.workout.sets
-                , saveButton (not (Array.isEmpty model.workout.sets) && Array.foldl (\s p -> p && isValidSet s) True model.workout.sets)
-                ]
+        LoggedIn model ->
+            Html.map LoggedInMsg
+                (Html.div
+                    [ class "relative"
+                    , style
+                        [ ( "padding-bottom", "100px" )
+                        , ( "z-index", "0" )
+                        ]
+                    ]
+                    [ setList (Workout.sets model.workout) model.setAnimation
+                    , navbar model
+                    , sidebar model.exercises model.workout model.sidebarIsOpen
+                    ]
+                )
 
 
-alreadyLoggedInView : Html Msg
-alreadyLoggedInView =
+navbar : LoggedInState -> Html LoggedInAction
+navbar model =
     Html.div
-        [ class "padding-1"
-        ]
-        [ Html.h2
-            [ class "margin-b-1"
+        [ class "fixed shadow-1 bg-white flex flex-align-center"
+        , style
+            [ ( "top", "0" )
+            , ( "left", "0" )
+            , ( "right", "0" )
+            , ( "height", "58px" )
+            , ( "padding", "0 10px" )
+            , ( "z-index", "2" )
             ]
-            [ Html.text "Already logged in"
+        ]
+        [ Html.div
+            [ class "flex-fit"
             ]
-        , primaryButton "Log out" Noop
-        , primaryButton "Go inside" (NavigateTo Workout)
+            [ saveButton (isValidWorkout model.workout)
+            ]
+        , Html.div
+            [ class "flex-fill text-right"
+            ]
+            [ Html.button
+                [ class "no-focus"
+                , style
+                    [ ( "height", "48px" )
+                    , ( "width", "48px" )
+                    , ( "background-color", "transparent" )
+                    , ( "font-size", "1.5em" )
+                    ]
+                , onClick ToggleSidebar
+                ]
+                [ Html.text "+"
+                ]
+            ]
         ]
 
 
-loginForm : Model -> Html Msg
-loginForm model =
-    let
-        button =
-            if model.login_form.in_progress then
-                primaryButton "Logging in..." Noop
-            else
-                primaryButton "Log in" SendLoginRequest
-
-        keyDownHandler key =
-            case key of
-                13 ->
-                    SendLoginRequest
-
-                _ ->
-                    Noop
-    in
+modal : Bool -> List (Html msg) -> Html msg
+modal visible =
     Html.div
-        [ class "padding-1"
+        [ class "fixed transition-transform bg-white padding-1 shadow-2"
+        , style
+            [ ( "z-index", "2" )
+            , ( "top", "50px" )
+            , ( "width", "250px" )
+            , ( "left", "50vw" )
+            , ( "margin-left", "-125px" )
+            , ( "transform"
+              , if visible then
+                    "translateY(0)"
+                else
+                    "translateY(-400px"
+              )
+            ]
         ]
-        [ Html.input
-            [ type_ "text"
-            , class "block full-width padding-1 margin-b-1 border-gray border-radius-1"
-            , value model.login_form.username
-            , onInput UpdateUsername
+
+
+loginForm : LoggedOutState -> Html LoggedOutAction
+loginForm { email, password, error } =
+    Html.div
+        []
+        [ Html.div
+            [ class "fixed cover bg-trans-1 transition-opacity"
+            , style
+                [ ( "z-index", "1" )
+                , ( "opacity", "0" )
+                , ( "bottom", "0" )
+                ]
             ]
             []
-        , Html.input
-            [ type_ "password"
-            , class "block full-width padding-1 margin-b-1 border-gray border-radius-1"
-            , value model.login_form.password
-            , onInput UpdatePassword
-            , onKeyDown keyDownHandler
+        , modal True
+            [ Html.text (Maybe.withDefault "" error)
+            , Html.input
+                [ type_ "email"
+                , class "block full-width padding-1 margin-b-1 border-gray border-radius-1"
+                , value email
+                , onInput UpdateEmail
+                ]
+                []
+            , Html.input
+                [ type_ "password"
+                , class "block full-width padding-1 margin-b-1 border-gray border-radius-1"
+                , value password
+                , onInput UpdatePassword
+                ]
+                []
+            , Html.button
+                [ onClick SendLoginRequest
+                , class (linkButton ++ " block full-width")
+                ]
+                [ Html.text "Log in" ]
             ]
-            []
-        , button
-        , Html.text (Maybe.withDefault "" model.login_form.error_message)
         ]
 
 
 addButton =
-    Html.div
-        [ class "text-center fixed padding-1 bg-success border-round color-white shadow-2"
+    Html.button
+        [ class "text-center fixed bg-noise bg-success border-round color-white shadow-2 cursor-pointer no-focus"
         , style
-            [ ( "height", "50px" )
-            , ( "width", "50px" )
+            [ ( "height", "56px" )
+            , ( "width", "56px" )
             , ( "bottom", "40px" )
             , ( "right", "40px" )
-            , ( "font-size", "16px" )
+            , ( "font-size", "30px" )
+            , ( "line-height", "54px" )
             ]
         , onClick ToggleSidebar
         ]
         [ Html.text "+" ]
 
 
-sidebar exercises isOpen =
-    Html.div []
+sidebar : List Exercise -> Workout -> Bool -> Html LoggedInAction
+sidebar exercises workout isOpen =
+    Html.div
+        [ class "relative"
+        , style [ ( "z-index", "3" ) ]
+        ]
         [ Html.div
-            [ class "fixed"
+            [ class "fixed bg-trans-1 transition-opacity"
             , onClick ToggleSidebar
             , style
                 [ ( "top", "0" )
@@ -361,11 +480,17 @@ sidebar exercises isOpen =
                     else
                         ""
                   )
+                , ( "opacity"
+                  , if isOpen then
+                        "1"
+                    else
+                        "0"
+                  )
                 ]
             ]
             []
         , Html.div
-            [ class "padding-1 bg-white fixed transition shadow-1"
+            [ class "bg-white fixed transition-transform shadow-1 overflow-scroll"
             , style
                 [ ( "top", "0" )
                 , ( "bottom", "0" )
@@ -373,26 +498,37 @@ sidebar exercises isOpen =
                 , ( "width", "200px" )
                 , ( "transform"
                   , if isOpen then
-                        "translateX(-200px)"
+                        "translateX(-210px)"
                     else
                         ""
                   )
                 ]
             ]
-            [ exerciseList exercises ]
+            [ exerciseList exercises
+            ]
         ]
 
 
-saveButton : Bool -> Html Msg
+btnClass : String
+btnClass =
+    "padding-1 border-radius-1 bold uppercase letter-spacing-2"
+
+
+linkButton : String
+linkButton =
+    btnClass ++ " bg-white"
+
+
+saveButton : Bool -> Html LoggedInAction
 saveButton active =
     let
         ( handler, classes ) =
             case active of
                 True ->
-                    ( SaveWorkout, "border-radius-1 block full-width padding-1 bg-success color-white" )
+                    ( SaveWorkout, linkButton ++ " color-success" )
 
                 False ->
-                    ( Noop, "border-radius-1 block full-width padding-1 bg-gray-1 color-white cursor-disabled" )
+                    ( SaveWorkout, "bg-white border-radius-1 padding-1 color-gray-1 uppercase cursor-disabled bold letter-spacing-2" )
     in
     Html.button
         [ class classes
@@ -402,60 +538,153 @@ saveButton active =
         [ Html.text "Save" ]
 
 
-exerciseList : List Exercise -> Html Msg
+exerciseList : List Exercise -> Html LoggedInAction
 exerciseList exercises =
-    Html.div []
+    Html.div
+        [ class "margin-b-2"
+        ]
         (List.map
             addExerciseButton
             exercises
         )
 
 
-primaryButton : String -> Msg -> Html Msg
+primaryButton : String -> msg -> Html msg
 primaryButton text handler =
     Html.button
         [ onClick handler
-        , class "margin-b-1 full-width block bg-primary color-white padding-1 border-radius-1"
+        , class "button"
         ]
         [ Html.text text ]
 
 
-addExerciseButton : Exercise -> Html Msg
+addExerciseButton : Exercise -> Html LoggedInAction
 addExerciseButton ({ name } as ex) =
-    primaryButton name (AddSet ex)
+    Html.button
+        [ class "button block full-width text-left"
+        , onClick (AddSet ex)
+        ]
+        [ Html.text name
+        ]
 
 
-setList : Array Set -> Html Msg
-setList sets =
-    Html.div []
-        (Array.toList (Array.indexedMap setForm sets))
+setList : List Set -> Maybe SetAnimation -> Html LoggedInAction
+setList sets animation =
+    Html.div
+        [ style
+            [ ( "margin-top", "62px" )
+            , ( "z-index", "1" )
+            ]
+        ]
+        (List.indexedMap (setItem animation) sets)
 
 
-setForm : Int -> Set -> Html Msg
-setForm index ({ exercise, reps, reps_input, weight, weight_input } as set) =
+setItem : Maybe SetAnimation -> Int -> Set -> Html LoggedInAction
+setItem animation index set =
     let
-        star =
-            if isValidSet set then
-                ""
-            else
-                "*"
+        inputs =
+            case set of
+                JustReps ( { name }, { reps_input } ) ->
+                    [ numberInput reps_input (UpdateReps index)
+                    ]
+
+                Weighted ( { name }, { reps_input, weight_input } ) ->
+                    [ numberInput reps_input (UpdateReps index)
+                    , numberInput weight_input (UpdateWeight index)
+                    ]
+
+        classes =
+            case animation of
+                Just (AddingSet i) ->
+                    if i == index then
+                        "add-set"
+                    else
+                        ""
+
+                Just (CloningSet i) ->
+                    if i < index then
+                        "copy-set"
+                    else
+                        ""
+
+                Just (RemovingSet i) ->
+                    if i == index then
+                        "remove-set"
+                    else if i < index then
+                        "copy-set a-reverse"
+                    else
+                        ""
+
+                _ ->
+                    ""
     in
-    Html.div [ class "margin-b-1" ]
-        [ Html.h5 [] [ Html.text (exercise.name ++ star) ]
-        , Html.div [ class "flex" ]
-            [ Html.div [ class "flex-fill" ] [ numberInput reps_input (UpdateReps index) ]
-            , Html.div [ class "flex-fill" ] [ numberInput weight_input (UpdateWeight index) ]
-            , Html.div [ class "flex-fit" ] [ primaryButton "Duplicera" (CloneSet index) ]
-            , Html.div [ class "flex-fit" ] [ primaryButton "Radera" (RemoveSet index) ]
+    Html.div
+        [ class classes
+        , Html.Events.onDoubleClick (CloneSet index)
+        ]
+        [ Html.div
+            [ class "bg-white margin-1 shadow-1"
+            , style
+                [ ( "z-index", "1" )
+                , ( "padding-bottom", "16px" )
+                ]
+            ]
+            [ Html.h5
+                [ class "uppercase font-size-2 letter-spacing-2 color-gray-2"
+                , style
+                    [ ( "line-height", "24px" )
+                    , ( "margin-left", "6px" )
+                    ]
+                ]
+                [ Html.text (toString (index + 1) ++ ". " ++ .name (Workout.exercise set)) ]
+            , Html.div
+                [ class "flex" ]
+                [ Html.div
+                    [ class "flex-fill padding-h-2"
+                    ]
+                    inputs
+                , Html.div
+                    [ class "flex-fit"
+                    , style
+                        [ ( "padding", "0 8px" )
+                        ]
+                    ]
+                    [ Html.button
+                        [ style
+                            [ ( "height", "48px" )
+                            , ( "width", "48px" )
+                            , ( "background-color", "transparent" )
+                            ]
+                        , class "no-focus"
+                        , onClick (CloneSet index)
+                        ]
+                        [ Html.span [ class "icon-copy" ] []
+                        ]
+                    , Html.button
+                        [ style
+                            [ ( "height", "48px" )
+                            , ( "width", "48px" )
+                            , ( "background-color", "transparent" )
+                            ]
+                        , class "no-focus"
+                        , onClick (RemoveSet index)
+                        ]
+                        [ Html.span [ class "icon-remove" ] []
+                        ]
+                    ]
+                ]
             ]
         ]
 
 
-numberInput : String -> (String -> Msg) -> Html Msg
+numberInput : String -> (String -> msg) -> Html msg
 numberInput val handler =
     Html.input
         [ type_ "number"
-        , class "full-width border-gray border-radius-1 padding-1 border-gray"
+        , class "number-input"
+        , pattern "[0-9]*"
+        , Html.Attributes.min "0"
+        , Html.Attributes.placeholder "#"
         , value val
         , onInput handler
         ]

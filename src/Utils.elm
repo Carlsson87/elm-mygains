@@ -19,6 +19,18 @@ removeFromArray i a =
     Array.append a1 a2
 
 
+insertInArray : Int -> Array a -> a -> Array a
+insertInArray i a x =
+    let
+        a1 =
+            Array.slice 0 i a
+
+        a2 =
+            Array.slice i (Array.length a) a
+    in
+    Array.append (Array.push x a1) a2
+
+
 updateInArray : Int -> (a -> a) -> Array a -> Array a
 updateInArray index f arr =
     case Array.get index arr of
@@ -99,3 +111,24 @@ isJust =
 onKeyDown : (Int -> a) -> Html.Attribute a
 onKeyDown tagger =
     Html.Events.on "keydown" (Decode.map tagger Html.Events.keyCode)
+
+
+groupByTransitive : (a -> a -> Bool) -> List a -> List (List a)
+groupByTransitive cmp xss =
+    case xss of
+        [] ->
+            []
+
+        [ x ] ->
+            [ [ x ] ]
+
+        x :: ((xx :: _) as xs) ->
+            case groupByTransitive cmp xs of
+                (y :: ys) as r ->
+                    if cmp x xx then
+                        (x :: y) :: ys
+                    else
+                        [ x ] :: r
+
+                [] ->
+                    []

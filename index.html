@@ -1,17 +1,19 @@
 <!DOCTYPE HTML>
 <html>
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=0">
         <meta charset="UTF-8">
-        <title>Main</title>
+        <title>MyGains</title>
         <link rel="stylesheet" href="styles.css" />
     </head>
     <body>
         <script src="elm.js"></script>
         <script type="text/javascript">
             var token = window.localStorage.getItem("jwt");
+            var workout = window.localStorage.getItem("workout");
             var app = Elm.Main.fullscreen({
-                api_token: token
+                api_token: token,
+                workout: workout
             });
             app.ports.remember.subscribe(function(pair) {
                 window.localStorage.setItem(pair[0], pair[1]);
