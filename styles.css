@@ -200,17 +200,17 @@ h1, h2, h3, h4, h5 {
 
 .add-set {
     animation-name: add-set;
-    animation-duration: 0.3s;
+    animation-duration: 0.2s;
 }
 
 .copy-set {
     animation-name: copy-set;
-    animation-duration: 0.3s;
+    animation-duration: 0.2s;
 }
 
 .remove-set {
     animation-name: remove-set;
-    animation-duration: 0.3s;
+    animation-duration: 0.2s;
 }
 
 .a-reverse {

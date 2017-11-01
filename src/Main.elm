@@ -76,10 +76,19 @@ type alias LoggedInState =
     , exercises : List Exercise
     , workout : Workout
     , date : Date
-    , sidebarIsOpen : Bool
+    , uiState : UIState
     , workoutSavedState : RemoteData CompletedWorkout String
     , setAnimation : Maybe SetAnimation
     }
+
+
+type UIState
+    = EditingWorkout
+    | AddingSets
+    | ConfirmingWorkout
+    | SavingWorkout
+    | WorkoutWasSaved
+    | WorkoutWasNotSaved String
 
 
 type alias LoggedOutState =
@@ -125,7 +134,7 @@ init flags =
 
         makeLogin : List Exercise -> Date -> String -> LoggedInState
         makeLogin exs date token =
-            LoggedInState token exs (workout exs) date False NotAsked Nothing
+            LoggedInState token exs (workout exs) date EditingWorkout NotAsked Nothing
 
         attemptLogin : String -> Task.Task Http.Error LoggedInState
         attemptLogin token =
@@ -145,7 +154,7 @@ type Msg
 
 
 type LoggedInAction
-    = ToggleSidebar
+    = TransitionTo UIState
     | AddSet Exercise
     | SetWasAdded
     | UpdateReps Int String
@@ -176,7 +185,7 @@ saveWorkout token date workout =
             (\res ->
                 case res of
                     Err _ ->
-                        Noop
+                        LoggedInMsg (TransitionTo (WorkoutWasNotSaved "Could not save workout"))
 
                     Ok _ ->
                         LoggedInMsg WorkoutSaved
@@ -199,14 +208,14 @@ forgetWorkout =
 loggedInUpdate : LoggedInAction -> LoggedInState -> ( Model, Cmd Msg )
 loggedInUpdate msg model =
     case msg of
-        ToggleSidebar ->
-            ( LoggedIn { model | sidebarIsOpen = not model.sidebarIsOpen }, Cmd.none )
+        TransitionTo state ->
+            ( LoggedIn { model | uiState = state }, Cmd.none )
 
         SaveWorkout ->
-            ( LoggedIn { model | workoutSavedState = Loading }, saveWorkout model.token model.date model.workout )
+            ( LoggedIn { model | uiState = SavingWorkout }, saveWorkout model.token model.date model.workout )
 
         WorkoutSaved ->
-            ( LoggedIn { model | workout = Workout.empty }, forgetWorkout )
+            ( LoggedIn { model | workout = Workout.empty, uiState = WorkoutWasSaved }, forgetWorkout )
 
         AddSet ex ->
             let
@@ -216,7 +225,7 @@ loggedInUpdate msg model =
             ( LoggedIn { model | workout = workout, setAnimation = Just (AddingSet (List.length (Workout.sets workout) - 1)) }
             , Cmd.batch
                 [ rememberWorkout workout model.date
-                , delay 300 (LoggedInMsg SetWasAdded)
+                , delay 200 (LoggedInMsg SetWasAdded)
                 ]
             )
 
@@ -245,7 +254,7 @@ loggedInUpdate msg model =
             ( LoggedIn { model | workout = workout, setAnimation = Just (CloningSet index) }
             , Cmd.batch
                 [ rememberWorkout workout model.date
-                , delay 300 (LoggedInMsg SetWasCloned)
+                , delay 200 (LoggedInMsg SetWasCloned)
                 ]
             )
 
@@ -253,7 +262,7 @@ loggedInUpdate msg model =
             ( LoggedIn { model | setAnimation = Nothing }, Cmd.none )
 
         RemoveSet index ->
-            ( LoggedIn { model | setAnimation = Just (RemovingSet index) }, delay 300 (LoggedInMsg (SetWasRemoved index)) )
+            ( LoggedIn { model | setAnimation = Just (RemovingSet index) }, delay 180 (LoggedInMsg (SetWasRemoved index)) )
 
         SetWasRemoved index ->
             let
@@ -292,7 +301,7 @@ loggedOutUpdate msg model =
                                     |> Task.andThen
                                         (\exs ->
                                             Date.now
-                                                |> Task.map (\date -> LoggedInState token exs Workout.empty date False NotAsked Nothing)
+                                                |> Task.map (\date -> LoggedInState token exs Workout.empty date EditingWorkout NotAsked Nothing)
                                         )
                             )
                         |> Task.attempt (LoggedOutMsg << LoginCompleted)
@@ -335,6 +344,15 @@ view model =
                 )
 
         LoggedIn model ->
+            let
+                sidebarOpen =
+                    case model.uiState of
+                        AddingSets ->
+                            True
+
+                        _ ->
+                            False
+            in
             Html.map LoggedInMsg
                 (Html.div
                     [ class "relative"
@@ -345,7 +363,8 @@ view model =
                     ]
                     [ setList (Workout.sets model.workout) model.setAnimation
                     , navbar model
-                    , sidebar model.exercises model.workout model.sidebarIsOpen
+                    , sidebar model.exercises model.workout sidebarOpen
+                    , confirmWorkout model
                     ]
                 )
 
@@ -379,7 +398,7 @@ navbar model =
                     , ( "background-color", "transparent" )
                     , ( "font-size", "1.5em" )
                     ]
-                , onClick ToggleSidebar
+                , onClick (TransitionTo AddingSets)
                 ]
                 [ Html.text "+"
                 ]
@@ -404,6 +423,75 @@ modal visible =
                     "translateY(-400px"
               )
             ]
+        ]
+
+
+confirmWorkout { uiState, date } =
+    let
+        ( visible, content ) =
+            case uiState of
+                ConfirmingWorkout ->
+                    ( True
+                    , [ Html.input
+                            [ type_ "date"
+                            , class "font-size-1 padding-2"
+                            , value (dateToString date)
+                            , onInput UpdateDate
+                            ]
+                            []
+                      , Html.button
+                            [ class (successLinkBtn ++ " block full-width no-focus")
+                            , onClick SaveWorkout
+                            ]
+                            [ Html.text "save the workout" ]
+                      ]
+                    )
+
+                SavingWorkout ->
+                    ( True
+                    , [ Html.button
+                            [ class (disabledLinkBtn ++ " block full-width no-focus")
+                            ]
+                            [ Html.text "saving..." ]
+                      ]
+                    )
+
+                WorkoutWasSaved ->
+                    ( True
+                    , [ Html.h5 [] [ Html.text "Your workout was saved" ]
+                      , Html.button
+                            [ class (disabledLinkBtn ++ " block full-width no-focus")
+                            , onClick (TransitionTo EditingWorkout)
+                            ]
+                            [ Html.text "OK" ]
+                      ]
+                    )
+
+                _ ->
+                    ( False, [] )
+    in
+    Html.div
+        [ style [ ( "z-index", "2" ) ], class "relative" ]
+        [ Html.div
+            [ class "fixed cover bg-trans-1 transition-opacity"
+            , style
+                [ ( "z-index", "1" )
+                , ( "opacity"
+                  , if visible then
+                        "1"
+                    else
+                        "0"
+                  )
+                , ( "bottom"
+                  , if visible then
+                        "0"
+                    else
+                        "auto"
+                  )
+                ]
+            ]
+            []
+        , modal visible content
         ]
 
 
@@ -438,27 +526,11 @@ loginForm { email, password, error } =
                 []
             , Html.button
                 [ onClick SendLoginRequest
-                , class (linkButton ++ " block full-width")
+                , class (successLinkBtn ++ " block full-width")
                 ]
                 [ Html.text "Log in" ]
             ]
         ]
-
-
-addButton =
-    Html.button
-        [ class "text-center fixed bg-noise bg-success border-round color-white shadow-2 cursor-pointer no-focus"
-        , style
-            [ ( "height", "56px" )
-            , ( "width", "56px" )
-            , ( "bottom", "40px" )
-            , ( "right", "40px" )
-            , ( "font-size", "30px" )
-            , ( "line-height", "54px" )
-            ]
-        , onClick ToggleSidebar
-        ]
-        [ Html.text "+" ]
 
 
 sidebar : List Exercise -> Workout -> Bool -> Html LoggedInAction
@@ -469,7 +541,7 @@ sidebar exercises workout isOpen =
         ]
         [ Html.div
             [ class "fixed bg-trans-1 transition-opacity"
-            , onClick ToggleSidebar
+            , onClick (TransitionTo EditingWorkout)
             , style
                 [ ( "top", "0" )
                 , ( "left", "0" )
@@ -511,30 +583,39 @@ sidebar exercises workout isOpen =
 
 btnClass : String
 btnClass =
-    "padding-1 border-radius-1 bold uppercase letter-spacing-2"
+    String.join " "
+        [ "padding-1"
+        , "border-radius-1"
+        , "bold"
+        , "uppercase"
+        , "letter-spacing-2"
+        , "bg-white"
+        ]
 
 
-linkButton : String
-linkButton =
-    btnClass ++ " bg-white"
+successLinkBtn =
+    btnClass ++ " color-success"
+
+
+disabledLinkBtn =
+    btnClass ++ " color-gray-1 cursor-disabled"
 
 
 saveButton : Bool -> Html LoggedInAction
 saveButton active =
     let
-        ( handler, classes ) =
-            case active of
-                True ->
-                    ( SaveWorkout, linkButton ++ " color-success" )
-
-                False ->
-                    ( SaveWorkout, "bg-white border-radius-1 padding-1 color-gray-1 uppercase cursor-disabled bold letter-spacing-2" )
+        attrs =
+            if active then
+                [ class (successLinkBtn ++ " no-focus")
+                , onClick (TransitionTo ConfirmingWorkout)
+                ]
+            else
+                [ class (disabledLinkBtn ++ " no-focus")
+                , disabled True
+                ]
     in
     Html.button
-        [ class classes
-        , disabled (not active)
-        , onClick handler
-        ]
+        attrs
         [ Html.text "Save" ]
 
 

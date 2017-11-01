@@ -6239,192 +6239,6 @@ var _elm_lang$core$Tuple$first = function (_p6) {
 	return _p7._0;
 };
 
-var _elm_lang$dom$Native_Dom = function() {
-
-var fakeNode = {
-	addEventListener: function() {},
-	removeEventListener: function() {}
-};
-
-var onDocument = on(typeof document !== 'undefined' ? document : fakeNode);
-var onWindow = on(typeof window !== 'undefined' ? window : fakeNode);
-
-function on(node)
-{
-	return function(eventName, decoder, toTask)
-	{
-		return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback) {
-
-			function performTask(event)
-			{
-				var result = A2(_elm_lang$core$Json_Decode$decodeValue, decoder, event);
-				if (result.ctor === 'Ok')
-				{
-					_elm_lang$core$Native_Scheduler.rawSpawn(toTask(result._0));
-				}
-			}
-
-			node.addEventListener(eventName, performTask);
-
-			return function()
-			{
-				node.removeEventListener(eventName, performTask);
-			};
-		});
-	};
-}
-
-var rAF = typeof requestAnimationFrame !== 'undefined'
-	? requestAnimationFrame
-	: function(callback) { callback(); };
-
-function withNode(id, doStuff)
-{
-	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
-	{
-		rAF(function()
-		{
-			var node = document.getElementById(id);
-			if (node === null)
-			{
-				callback(_elm_lang$core$Native_Scheduler.fail({ ctor: 'NotFound', _0: id }));
-				return;
-			}
-			callback(_elm_lang$core$Native_Scheduler.succeed(doStuff(node)));
-		});
-	});
-}
-
-
-// FOCUS
-
-function focus(id)
-{
-	return withNode(id, function(node) {
-		node.focus();
-		return _elm_lang$core$Native_Utils.Tuple0;
-	});
-}
-
-function blur(id)
-{
-	return withNode(id, function(node) {
-		node.blur();
-		return _elm_lang$core$Native_Utils.Tuple0;
-	});
-}
-
-
-// SCROLLING
-
-function getScrollTop(id)
-{
-	return withNode(id, function(node) {
-		return node.scrollTop;
-	});
-}
-
-function setScrollTop(id, desiredScrollTop)
-{
-	return withNode(id, function(node) {
-		node.scrollTop = desiredScrollTop;
-		return _elm_lang$core$Native_Utils.Tuple0;
-	});
-}
-
-function toBottom(id)
-{
-	return withNode(id, function(node) {
-		node.scrollTop = node.scrollHeight;
-		return _elm_lang$core$Native_Utils.Tuple0;
-	});
-}
-
-function getScrollLeft(id)
-{
-	return withNode(id, function(node) {
-		return node.scrollLeft;
-	});
-}
-
-function setScrollLeft(id, desiredScrollLeft)
-{
-	return withNode(id, function(node) {
-		node.scrollLeft = desiredScrollLeft;
-		return _elm_lang$core$Native_Utils.Tuple0;
-	});
-}
-
-function toRight(id)
-{
-	return withNode(id, function(node) {
-		node.scrollLeft = node.scrollWidth;
-		return _elm_lang$core$Native_Utils.Tuple0;
-	});
-}
-
-
-// SIZE
-
-function width(options, id)
-{
-	return withNode(id, function(node) {
-		switch (options.ctor)
-		{
-			case 'Content':
-				return node.scrollWidth;
-			case 'VisibleContent':
-				return node.clientWidth;
-			case 'VisibleContentWithBorders':
-				return node.offsetWidth;
-			case 'VisibleContentWithBordersAndMargins':
-				var rect = node.getBoundingClientRect();
-				return rect.right - rect.left;
-		}
-	});
-}
-
-function height(options, id)
-{
-	return withNode(id, function(node) {
-		switch (options.ctor)
-		{
-			case 'Content':
-				return node.scrollHeight;
-			case 'VisibleContent':
-				return node.clientHeight;
-			case 'VisibleContentWithBorders':
-				return node.offsetHeight;
-			case 'VisibleContentWithBordersAndMargins':
-				var rect = node.getBoundingClientRect();
-				return rect.bottom - rect.top;
-		}
-	});
-}
-
-return {
-	onDocument: F3(onDocument),
-	onWindow: F3(onWindow),
-
-	focus: focus,
-	blur: blur,
-
-	getScrollTop: getScrollTop,
-	setScrollTop: F2(setScrollTop),
-	getScrollLeft: getScrollLeft,
-	setScrollLeft: F2(setScrollLeft),
-	toBottom: toBottom,
-	toRight: toRight,
-
-	height: F2(height),
-	width: F2(width)
-};
-
-}();
-
-var _elm_lang$dom$Dom_LowLevel$onWindow = _elm_lang$dom$Native_Dom.onWindow;
-var _elm_lang$dom$Dom_LowLevel$onDocument = _elm_lang$dom$Native_Dom.onDocument;
-
 var _elm_lang$virtual_dom$VirtualDom_Debug$wrap;
 var _elm_lang$virtual_dom$VirtualDom_Debug$wrapWithFlags;
 
@@ -9289,427 +9103,131 @@ var _elm_lang$http$Http$StringPart = F2(
 	});
 var _elm_lang$http$Http$stringPart = _elm_lang$http$Http$StringPart;
 
-var _elm_lang$navigation$Native_Navigation = function() {
-
-
-// FAKE NAVIGATION
-
-function go(n)
-{
-	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
-	{
-		if (n !== 0)
-		{
-			history.go(n);
-		}
-		callback(_elm_lang$core$Native_Scheduler.succeed(_elm_lang$core$Native_Utils.Tuple0));
+var _user$project$Data_Exercise$Exercise = F3(
+	function (a, b, c) {
+		return {id: a, name: b, type_: c};
 	});
-}
-
-function pushState(url)
-{
-	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
-	{
-		history.pushState({}, '', url);
-		callback(_elm_lang$core$Native_Scheduler.succeed(getLocation()));
+var _user$project$Data_Exercise$RepsAndWeight = {ctor: 'RepsAndWeight'};
+var _user$project$Data_Exercise$weighted = F2(
+	function (id, name) {
+		return A3(_user$project$Data_Exercise$Exercise, id, name, _user$project$Data_Exercise$RepsAndWeight);
 	});
-}
-
-function replaceState(url)
-{
-	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
-	{
-		history.replaceState({}, '', url);
-		callback(_elm_lang$core$Native_Scheduler.succeed(getLocation()));
+var _user$project$Data_Exercise$Reps = {ctor: 'Reps'};
+var _user$project$Data_Exercise$justReps = F2(
+	function (id, name) {
+		return A3(_user$project$Data_Exercise$Exercise, id, name, _user$project$Data_Exercise$Reps);
 	});
-}
-
-
-// REAL NAVIGATION
-
-function reloadPage(skipCache)
-{
-	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
-	{
-		document.location.reload(skipCache);
-		callback(_elm_lang$core$Native_Scheduler.succeed(_elm_lang$core$Native_Utils.Tuple0));
-	});
-}
-
-function setLocation(url)
-{
-	return _elm_lang$core$Native_Scheduler.nativeBinding(function(callback)
-	{
-		try
-		{
-			window.location = url;
-		}
-		catch(err)
-		{
-			// Only Firefox can throw a NS_ERROR_MALFORMED_URI exception here.
-			// Other browsers reload the page, so let's be consistent about that.
-			document.location.reload(false);
-		}
-		callback(_elm_lang$core$Native_Scheduler.succeed(_elm_lang$core$Native_Utils.Tuple0));
-	});
-}
-
-
-// GET LOCATION
-
-function getLocation()
-{
-	var location = document.location;
-
-	return {
-		href: location.href,
-		host: location.host,
-		hostname: location.hostname,
-		protocol: location.protocol,
-		origin: location.origin,
-		port_: location.port,
-		pathname: location.pathname,
-		search: location.search,
-		hash: location.hash,
-		username: location.username,
-		password: location.password
-	};
-}
-
-
-// DETECT IE11 PROBLEMS
-
-function isInternetExplorer11()
-{
-	return window.navigator.userAgent.indexOf('Trident') !== -1;
-}
-
-
-return {
-	go: go,
-	setLocation: setLocation,
-	reloadPage: reloadPage,
-	pushState: pushState,
-	replaceState: replaceState,
-	getLocation: getLocation,
-	isInternetExplorer11: isInternetExplorer11
-};
-
+var _user$project$Data_Exercise$exerciseDecoder = function () {
+	var typeDecoder = A2(
+		_elm_lang$core$Json_Decode$andThen,
+		function (typ) {
+			var _p0 = typ;
+			switch (_p0) {
+				case 'REPS':
+					return _elm_lang$core$Json_Decode$succeed(_user$project$Data_Exercise$Reps);
+				case 'REPS*WEIGHT':
+					return _elm_lang$core$Json_Decode$succeed(_user$project$Data_Exercise$RepsAndWeight);
+				default:
+					return _elm_lang$core$Json_Decode$fail(
+						A2(_elm_lang$core$Basics_ops['++'], 'Unknown type ', typ));
+			}
+		},
+		_elm_lang$core$Json_Decode$string);
+	return A4(
+		_elm_lang$core$Json_Decode$map3,
+		_user$project$Data_Exercise$Exercise,
+		A2(_elm_lang$core$Json_Decode$field, 'id', _elm_lang$core$Json_Decode$int),
+		A2(_elm_lang$core$Json_Decode$field, 'name', _elm_lang$core$Json_Decode$string),
+		A2(_elm_lang$core$Json_Decode$field, 'type', typeDecoder));
 }();
 
-var _elm_lang$navigation$Navigation$replaceState = _elm_lang$navigation$Native_Navigation.replaceState;
-var _elm_lang$navigation$Navigation$pushState = _elm_lang$navigation$Native_Navigation.pushState;
-var _elm_lang$navigation$Navigation$go = _elm_lang$navigation$Native_Navigation.go;
-var _elm_lang$navigation$Navigation$reloadPage = _elm_lang$navigation$Native_Navigation.reloadPage;
-var _elm_lang$navigation$Navigation$setLocation = _elm_lang$navigation$Native_Navigation.setLocation;
-var _elm_lang$navigation$Navigation_ops = _elm_lang$navigation$Navigation_ops || {};
-_elm_lang$navigation$Navigation_ops['&>'] = F2(
-	function (task1, task2) {
-		return A2(
-			_elm_lang$core$Task$andThen,
-			function (_p0) {
-				return task2;
-			},
-			task1);
-	});
-var _elm_lang$navigation$Navigation$notify = F3(
-	function (router, subs, location) {
-		var send = function (_p1) {
-			var _p2 = _p1;
-			return A2(
-				_elm_lang$core$Platform$sendToApp,
-				router,
-				_p2._0(location));
-		};
-		return A2(
-			_elm_lang$navigation$Navigation_ops['&>'],
-			_elm_lang$core$Task$sequence(
-				A2(_elm_lang$core$List$map, send, subs)),
-			_elm_lang$core$Task$succeed(
-				{ctor: '_Tuple0'}));
-	});
-var _elm_lang$navigation$Navigation$cmdHelp = F3(
-	function (router, subs, cmd) {
-		var _p3 = cmd;
-		switch (_p3.ctor) {
-			case 'Jump':
-				return _elm_lang$navigation$Navigation$go(_p3._0);
-			case 'New':
-				return A2(
-					_elm_lang$core$Task$andThen,
-					A2(_elm_lang$navigation$Navigation$notify, router, subs),
-					_elm_lang$navigation$Navigation$pushState(_p3._0));
-			case 'Modify':
-				return A2(
-					_elm_lang$core$Task$andThen,
-					A2(_elm_lang$navigation$Navigation$notify, router, subs),
-					_elm_lang$navigation$Navigation$replaceState(_p3._0));
-			case 'Visit':
-				return _elm_lang$navigation$Navigation$setLocation(_p3._0);
-			default:
-				return _elm_lang$navigation$Navigation$reloadPage(_p3._0);
-		}
-	});
-var _elm_lang$navigation$Navigation$killPopWatcher = function (popWatcher) {
-	var _p4 = popWatcher;
-	if (_p4.ctor === 'Normal') {
-		return _elm_lang$core$Process$kill(_p4._0);
-	} else {
-		return A2(
-			_elm_lang$navigation$Navigation_ops['&>'],
-			_elm_lang$core$Process$kill(_p4._0),
-			_elm_lang$core$Process$kill(_p4._1));
-	}
-};
-var _elm_lang$navigation$Navigation$onSelfMsg = F3(
-	function (router, location, state) {
-		return A2(
-			_elm_lang$navigation$Navigation_ops['&>'],
-			A3(_elm_lang$navigation$Navigation$notify, router, state.subs, location),
-			_elm_lang$core$Task$succeed(state));
-	});
-var _elm_lang$navigation$Navigation$subscription = _elm_lang$core$Native_Platform.leaf('Navigation');
-var _elm_lang$navigation$Navigation$command = _elm_lang$core$Native_Platform.leaf('Navigation');
-var _elm_lang$navigation$Navigation$Location = function (a) {
-	return function (b) {
-		return function (c) {
-			return function (d) {
-				return function (e) {
-					return function (f) {
-						return function (g) {
-							return function (h) {
-								return function (i) {
-									return function (j) {
-										return function (k) {
-											return {href: a, host: b, hostname: c, protocol: d, origin: e, port_: f, pathname: g, search: h, hash: i, username: j, password: k};
-										};
-									};
-								};
-							};
-						};
-					};
-				};
-			};
-		};
-	};
-};
-var _elm_lang$navigation$Navigation$State = F2(
-	function (a, b) {
-		return {subs: a, popWatcher: b};
-	});
-var _elm_lang$navigation$Navigation$init = _elm_lang$core$Task$succeed(
-	A2(
-		_elm_lang$navigation$Navigation$State,
-		{ctor: '[]'},
-		_elm_lang$core$Maybe$Nothing));
-var _elm_lang$navigation$Navigation$Reload = function (a) {
-	return {ctor: 'Reload', _0: a};
-};
-var _elm_lang$navigation$Navigation$reload = _elm_lang$navigation$Navigation$command(
-	_elm_lang$navigation$Navigation$Reload(false));
-var _elm_lang$navigation$Navigation$reloadAndSkipCache = _elm_lang$navigation$Navigation$command(
-	_elm_lang$navigation$Navigation$Reload(true));
-var _elm_lang$navigation$Navigation$Visit = function (a) {
-	return {ctor: 'Visit', _0: a};
-};
-var _elm_lang$navigation$Navigation$load = function (url) {
-	return _elm_lang$navigation$Navigation$command(
-		_elm_lang$navigation$Navigation$Visit(url));
-};
-var _elm_lang$navigation$Navigation$Modify = function (a) {
-	return {ctor: 'Modify', _0: a};
-};
-var _elm_lang$navigation$Navigation$modifyUrl = function (url) {
-	return _elm_lang$navigation$Navigation$command(
-		_elm_lang$navigation$Navigation$Modify(url));
-};
-var _elm_lang$navigation$Navigation$New = function (a) {
-	return {ctor: 'New', _0: a};
-};
-var _elm_lang$navigation$Navigation$newUrl = function (url) {
-	return _elm_lang$navigation$Navigation$command(
-		_elm_lang$navigation$Navigation$New(url));
-};
-var _elm_lang$navigation$Navigation$Jump = function (a) {
-	return {ctor: 'Jump', _0: a};
-};
-var _elm_lang$navigation$Navigation$back = function (n) {
-	return _elm_lang$navigation$Navigation$command(
-		_elm_lang$navigation$Navigation$Jump(0 - n));
-};
-var _elm_lang$navigation$Navigation$forward = function (n) {
-	return _elm_lang$navigation$Navigation$command(
-		_elm_lang$navigation$Navigation$Jump(n));
-};
-var _elm_lang$navigation$Navigation$cmdMap = F2(
-	function (_p5, myCmd) {
-		var _p6 = myCmd;
-		switch (_p6.ctor) {
-			case 'Jump':
-				return _elm_lang$navigation$Navigation$Jump(_p6._0);
-			case 'New':
-				return _elm_lang$navigation$Navigation$New(_p6._0);
-			case 'Modify':
-				return _elm_lang$navigation$Navigation$Modify(_p6._0);
-			case 'Visit':
-				return _elm_lang$navigation$Navigation$Visit(_p6._0);
-			default:
-				return _elm_lang$navigation$Navigation$Reload(_p6._0);
-		}
-	});
-var _elm_lang$navigation$Navigation$Monitor = function (a) {
-	return {ctor: 'Monitor', _0: a};
-};
-var _elm_lang$navigation$Navigation$program = F2(
-	function (locationToMessage, stuff) {
-		var init = stuff.init(
-			_elm_lang$navigation$Native_Navigation.getLocation(
-				{ctor: '_Tuple0'}));
-		var subs = function (model) {
-			return _elm_lang$core$Platform_Sub$batch(
-				{
-					ctor: '::',
-					_0: _elm_lang$navigation$Navigation$subscription(
-						_elm_lang$navigation$Navigation$Monitor(locationToMessage)),
-					_1: {
-						ctor: '::',
-						_0: stuff.subscriptions(model),
-						_1: {ctor: '[]'}
-					}
-				});
-		};
-		return _elm_lang$html$Html$program(
-			{init: init, view: stuff.view, update: stuff.update, subscriptions: subs});
-	});
-var _elm_lang$navigation$Navigation$programWithFlags = F2(
-	function (locationToMessage, stuff) {
-		var init = function (flags) {
-			return A2(
-				stuff.init,
-				flags,
-				_elm_lang$navigation$Native_Navigation.getLocation(
-					{ctor: '_Tuple0'}));
-		};
-		var subs = function (model) {
-			return _elm_lang$core$Platform_Sub$batch(
-				{
-					ctor: '::',
-					_0: _elm_lang$navigation$Navigation$subscription(
-						_elm_lang$navigation$Navigation$Monitor(locationToMessage)),
-					_1: {
-						ctor: '::',
-						_0: stuff.subscriptions(model),
-						_1: {ctor: '[]'}
-					}
-				});
-		};
-		return _elm_lang$html$Html$programWithFlags(
-			{init: init, view: stuff.view, update: stuff.update, subscriptions: subs});
-	});
-var _elm_lang$navigation$Navigation$subMap = F2(
-	function (func, _p7) {
-		var _p8 = _p7;
-		return _elm_lang$navigation$Navigation$Monitor(
-			function (_p9) {
-				return func(
-					_p8._0(_p9));
+var _user$project$Data_Set$updateWeight = F2(
+	function (str, rec) {
+		return _elm_lang$core$Native_Utils.update(
+			rec,
+			{
+				weight: _elm_lang$core$Result$toMaybe(
+					_elm_lang$core$String$toFloat(str)),
+				weight_input: str
 			});
 	});
-var _elm_lang$navigation$Navigation$InternetExplorer = F2(
-	function (a, b) {
-		return {ctor: 'InternetExplorer', _0: a, _1: b};
+var _user$project$Data_Set$updateReps = F2(
+	function (str, rec) {
+		return _elm_lang$core$Native_Utils.update(
+			rec,
+			{
+				reps: _elm_lang$core$Result$toMaybe(
+					_elm_lang$core$String$toInt(str)),
+				reps_input: str
+			});
 	});
-var _elm_lang$navigation$Navigation$Normal = function (a) {
-	return {ctor: 'Normal', _0: a};
+var _user$project$Data_Set$weight = function (_p0) {
+	var _p1 = _p0;
+	return _p1.weight;
 };
-var _elm_lang$navigation$Navigation$spawnPopWatcher = function (router) {
-	var reportLocation = function (_p10) {
-		return A2(
-			_elm_lang$core$Platform$sendToSelf,
-			router,
-			_elm_lang$navigation$Native_Navigation.getLocation(
-				{ctor: '_Tuple0'}));
-	};
-	return _elm_lang$navigation$Native_Navigation.isInternetExplorer11(
-		{ctor: '_Tuple0'}) ? A3(
-		_elm_lang$core$Task$map2,
-		_elm_lang$navigation$Navigation$InternetExplorer,
-		_elm_lang$core$Process$spawn(
-			A3(_elm_lang$dom$Dom_LowLevel$onWindow, 'popstate', _elm_lang$core$Json_Decode$value, reportLocation)),
-		_elm_lang$core$Process$spawn(
-			A3(_elm_lang$dom$Dom_LowLevel$onWindow, 'hashchange', _elm_lang$core$Json_Decode$value, reportLocation))) : A2(
-		_elm_lang$core$Task$map,
-		_elm_lang$navigation$Navigation$Normal,
-		_elm_lang$core$Process$spawn(
-			A3(_elm_lang$dom$Dom_LowLevel$onWindow, 'popstate', _elm_lang$core$Json_Decode$value, reportLocation)));
+var _user$project$Data_Set$reps = function (_p2) {
+	var _p3 = _p2;
+	return _p3.reps;
 };
-var _elm_lang$navigation$Navigation$onEffects = F4(
-	function (router, cmds, subs, _p11) {
-		var _p12 = _p11;
-		var _p15 = _p12.popWatcher;
-		var stepState = function () {
-			var _p13 = {ctor: '_Tuple2', _0: subs, _1: _p15};
-			_v6_2:
-			do {
-				if (_p13._0.ctor === '[]') {
-					if (_p13._1.ctor === 'Just') {
-						return A2(
-							_elm_lang$navigation$Navigation_ops['&>'],
-							_elm_lang$navigation$Navigation$killPopWatcher(_p13._1._0),
-							_elm_lang$core$Task$succeed(
-								A2(_elm_lang$navigation$Navigation$State, subs, _elm_lang$core$Maybe$Nothing)));
-					} else {
-						break _v6_2;
-					}
-				} else {
-					if (_p13._1.ctor === 'Nothing') {
-						return A2(
-							_elm_lang$core$Task$map,
-							function (_p14) {
-								return A2(
-									_elm_lang$navigation$Navigation$State,
-									subs,
-									_elm_lang$core$Maybe$Just(_p14));
-							},
-							_elm_lang$navigation$Navigation$spawnPopWatcher(router));
-					} else {
-						break _v6_2;
-					}
-				}
-			} while(false);
-			return _elm_lang$core$Task$succeed(
-				A2(_elm_lang$navigation$Navigation$State, subs, _p15));
-		}();
-		return A2(
-			_elm_lang$navigation$Navigation_ops['&>'],
-			_elm_lang$core$Task$sequence(
-				A2(
-					_elm_lang$core$List$map,
-					A2(_elm_lang$navigation$Navigation$cmdHelp, router, subs),
-					cmds)),
-			stepState);
-	});
-_elm_lang$core$Native_Platform.effectManagers['Navigation'] = {pkg: 'elm-lang/navigation', init: _elm_lang$navigation$Navigation$init, onEffects: _elm_lang$navigation$Navigation$onEffects, onSelfMsg: _elm_lang$navigation$Navigation$onSelfMsg, tag: 'fx', cmdMap: _elm_lang$navigation$Navigation$cmdMap, subMap: _elm_lang$navigation$Navigation$subMap};
 
+var _user$project$Utils$groupByTransitive = F2(
+	function (cmp, xss) {
+		var _p0 = xss;
+		if (_p0.ctor === '[]') {
+			return {ctor: '[]'};
+		} else {
+			if (_p0._1.ctor === '[]') {
+				return {
+					ctor: '::',
+					_0: {
+						ctor: '::',
+						_0: _p0._0,
+						_1: {ctor: '[]'}
+					},
+					_1: {ctor: '[]'}
+				};
+			} else {
+				var _p2 = _p0._0;
+				var _p1 = A2(_user$project$Utils$groupByTransitive, cmp, _p0._1);
+				if (_p1.ctor === '::') {
+					return A2(cmp, _p2, _p0._1._0) ? {
+						ctor: '::',
+						_0: {ctor: '::', _0: _p2, _1: _p1._0},
+						_1: _p1._1
+					} : {
+						ctor: '::',
+						_0: {
+							ctor: '::',
+							_0: _p2,
+							_1: {ctor: '[]'}
+						},
+						_1: _p1
+					};
+				} else {
+					return {ctor: '[]'};
+				}
+			}
+		}
+	});
 var _user$project$Utils$onKeyDown = function (tagger) {
 	return A2(
 		_elm_lang$html$Html_Events$on,
 		'keydown',
 		A2(_elm_lang$core$Json_Decode$map, tagger, _elm_lang$html$Html_Events$keyCode));
 };
-var _user$project$Utils$isJust = function (_p0) {
+var _user$project$Utils$isJust = function (_p3) {
 	return A2(
 		_elm_lang$core$Maybe$withDefault,
 		false,
 		A2(
 			_elm_lang$core$Maybe$map,
 			_elm_lang$core$Basics$always(true),
-			_p0));
+			_p3));
 };
 var _user$project$Utils$dateToString = function (date) {
 	var m = function () {
-		var _p1 = _elm_lang$core$Date$month(date);
-		switch (_p1.ctor) {
+		var _p4 = _elm_lang$core$Date$month(date);
+		switch (_p4.ctor) {
 			case 'Jan':
 				return '01';
 			case 'Feb':
@@ -9764,13 +9282,13 @@ var _user$project$Utils$dateToString = function (date) {
 var _user$project$Utils$traverseArray = function (f) {
 	var step = F2(
 		function (e, acc) {
-			var _p2 = f(e);
-			if (_p2.ctor === 'Nothing') {
+			var _p5 = f(e);
+			if (_p5.ctor === 'Nothing') {
 				return _elm_lang$core$Maybe$Nothing;
 			} else {
 				return A2(
 					_elm_lang$core$Maybe$map,
-					_elm_lang$core$Array$push(_p2._0),
+					_elm_lang$core$Array$push(_p5._0),
 					acc);
 			}
 		});
@@ -9781,16 +9299,29 @@ var _user$project$Utils$traverseArray = function (f) {
 };
 var _user$project$Utils$updateInArray = F3(
 	function (index, f, arr) {
-		var _p3 = A2(_elm_lang$core$Array$get, index, arr);
-		if (_p3.ctor === 'Just') {
+		var _p6 = A2(_elm_lang$core$Array$get, index, arr);
+		if (_p6.ctor === 'Just') {
 			return A3(
 				_elm_lang$core$Array$set,
 				index,
-				f(_p3._0),
+				f(_p6._0),
 				arr);
 		} else {
 			return arr;
 		}
+	});
+var _user$project$Utils$insertInArray = F3(
+	function (i, a, x) {
+		var a2 = A3(
+			_elm_lang$core$Array$slice,
+			i,
+			_elm_lang$core$Array$length(a),
+			a);
+		var a1 = A3(_elm_lang$core$Array$slice, 0, i, a);
+		return A2(
+			_elm_lang$core$Array$append,
+			A2(_elm_lang$core$Array$push, x, a1),
+			a2);
 	});
 var _user$project$Utils$removeFromArray = F2(
 	function (i, a) {
@@ -9803,180 +9334,308 @@ var _user$project$Utils$removeFromArray = F2(
 		return A2(_elm_lang$core$Array$append, a1, a2);
 	});
 
-var _user$project$Data$setEncoder = function (_p0) {
-	var _p1 = _p0;
-	return _elm_lang$core$Json_Encode$object(
-		{
-			ctor: '::',
-			_0: {
-				ctor: '_Tuple2',
-				_0: 'exercise_id',
-				_1: _elm_lang$core$Json_Encode$int(_p1.exercise_id)
-			},
-			_1: {
-				ctor: '::',
-				_0: {
-					ctor: '_Tuple2',
-					_0: 'reps',
-					_1: _elm_lang$core$Json_Encode$int(_p1.reps)
-				},
-				_1: {
-					ctor: '::',
-					_0: {
-						ctor: '_Tuple2',
-						_0: 'weight',
-						_1: _elm_lang$core$Json_Encode$float(_p1.weight)
-					},
-					_1: {ctor: '[]'}
-				}
-			}
-		});
+var _user$project$Data_Workout$exercise = function (set) {
+	var _p0 = set;
+	if (_p0.ctor === 'JustReps') {
+		return _p0._0._0;
+	} else {
+		return _p0._0._0;
+	}
 };
-var _user$project$Data$workoutEncoder = function (_p2) {
-	var _p3 = _p2;
-	return _elm_lang$core$Json_Encode$object(
-		{
-			ctor: '::',
-			_0: {
-				ctor: '_Tuple2',
-				_0: 'date',
-				_1: _elm_lang$core$Json_Encode$string(
-					_user$project$Utils$dateToString(_p3.date))
-			},
-			_1: {
-				ctor: '::',
-				_0: {
-					ctor: '_Tuple2',
-					_0: 'sets',
-					_1: _elm_lang$core$Json_Encode$list(
-						A2(_elm_lang$core$List$map, _user$project$Data$setEncoder, _p3.sets))
-				},
-				_1: {ctor: '[]'}
-			}
-		});
+var _user$project$Data_Workout$isInWorkout = F2(
+	function (_p1, ex) {
+		var _p2 = _p1;
+		var same = F2(
+			function (set, found) {
+				return found ? true : _elm_lang$core$Native_Utils.eq(
+					ex,
+					_user$project$Data_Workout$exercise(set));
+			});
+		return A3(_elm_lang$core$Array$foldl, same, false, _p2._0);
+	});
+var _user$project$Data_Workout$isValidSet = function (set) {
+	var _p3 = set;
+	if (_p3.ctor === 'JustReps') {
+		return _user$project$Utils$isJust(_p3._0._1.reps);
+	} else {
+		return _user$project$Utils$isJust(_p3._0._1.reps) && _user$project$Utils$isJust(_p3._0._1.weight);
+	}
 };
-var _user$project$Data$isValidSet = function (_p4) {
+var _user$project$Data_Workout$isValidWorkout = function (_p4) {
 	var _p5 = _p4;
-	return _user$project$Utils$isJust(_p5.reps) && _user$project$Utils$isJust(_p5.weight);
+	var _p6 = _p5._0;
+	return (!_elm_lang$core$Array$isEmpty(_p6)) && A2(
+		_elm_lang$core$List$all,
+		_user$project$Data_Workout$isValidSet,
+		_elm_lang$core$Array$toList(_p6));
 };
-var _user$project$Data$updateSet = F3(
-	function (index, f, w) {
-		return _elm_lang$core$Native_Utils.update(
-			w,
-			{
-				sets: A3(_user$project$Utils$updateInArray, index, f, w.sets)
-			});
-	});
-var _user$project$Data$updateWeight = F3(
-	function (weight, index, w) {
-		var update = function (s) {
-			return _elm_lang$core$Native_Utils.update(
-				s,
-				{
-					weight_input: weight,
-					weight: _elm_lang$core$Result$toMaybe(
-						_elm_lang$core$String$toFloat(weight))
-				});
-		};
-		return A3(_user$project$Data$updateSet, index, update, w);
-	});
-var _user$project$Data$updateReps = F3(
-	function (reps, index, w) {
-		var update = function (s) {
-			return _elm_lang$core$Native_Utils.update(
-				s,
-				{
-					reps_input: reps,
-					reps: _elm_lang$core$Result$toMaybe(
-						_elm_lang$core$String$toInt(reps))
-				});
-		};
-		return A3(_user$project$Data$updateSet, index, update, w);
-	});
-var _user$project$Data$removeSet = F2(
-	function (index, w) {
-		return _elm_lang$core$Native_Utils.update(
-			w,
-			{
-				sets: A2(_user$project$Utils$removeFromArray, index, w.sets)
-			});
-	});
-var _user$project$Data$cloneSet = F2(
-	function (index, w) {
-		return A2(
-			_elm_lang$core$Maybe$withDefault,
-			w,
-			A2(
-				_elm_lang$core$Maybe$map,
-				function (set) {
-					return _elm_lang$core$Native_Utils.update(
-						w,
+var _user$project$Data_Workout$setEncoder = function (set) {
+	var encode = function (id) {
+		return _elm_lang$core$Maybe$map2(
+			F2(
+				function (r, w) {
+					return _elm_lang$core$Json_Encode$object(
 						{
-							sets: A2(_elm_lang$core$Array$push, set, w.sets)
+							ctor: '::',
+							_0: {
+								ctor: '_Tuple2',
+								_0: 'exercise_id',
+								_1: _elm_lang$core$Json_Encode$int(id)
+							},
+							_1: {
+								ctor: '::',
+								_0: {
+									ctor: '_Tuple2',
+									_0: 'reps',
+									_1: _elm_lang$core$Json_Encode$int(r)
+								},
+								_1: {
+									ctor: '::',
+									_0: {
+										ctor: '_Tuple2',
+										_0: 'weight',
+										_1: _elm_lang$core$Json_Encode$float(w)
+									},
+									_1: {ctor: '[]'}
+								}
+							}
 						});
-				},
-				A2(_elm_lang$core$Array$get, index, w.sets)));
-	});
-var _user$project$Data$Exercise = F2(
-	function (a, b) {
-		return {id: a, name: b};
-	});
-var _user$project$Data$exerciseDecoder = _elm_lang$core$Json_Decode$list(
-	A3(
-		_elm_lang$core$Json_Decode$map2,
-		_user$project$Data$Exercise,
-		A2(_elm_lang$core$Json_Decode$field, 'id', _elm_lang$core$Json_Decode$int),
-		A2(_elm_lang$core$Json_Decode$field, 'name', _elm_lang$core$Json_Decode$string)));
-var _user$project$Data$Set = F5(
-	function (a, b, c, d, e) {
-		return {exercise: a, reps_input: b, reps: c, weight_input: d, weight: e};
-	});
-var _user$project$Data$newSet = function (ex) {
-	return A5(_user$project$Data$Set, ex, '', _elm_lang$core$Maybe$Nothing, '', _elm_lang$core$Maybe$Nothing);
+				}));
+	};
+	var _p7 = set;
+	if (_p7.ctor === 'JustReps') {
+		return A3(
+			encode,
+			_p7._0._0.id,
+			_p7._0._1.reps,
+			_elm_lang$core$Maybe$Just(0));
+	} else {
+		return A3(encode, _p7._0._0.id, _p7._0._1.reps, _p7._0._1.weight);
+	}
 };
-var _user$project$Data$addSet = F2(
-	function (ex, w) {
-		return _elm_lang$core$Native_Utils.update(
-			w,
-			{
-				sets: A2(
-					_elm_lang$core$Array$push,
-					_user$project$Data$newSet(ex),
-					w.sets)
-			});
+var _user$project$Data_Workout$encodeWorkout = F2(
+	function (date, _p8) {
+		var _p9 = _p8;
+		return A2(
+			_elm_lang$core$Maybe$map,
+			function (sets) {
+				return _elm_lang$core$Json_Encode$object(
+					{
+						ctor: '::',
+						_0: {
+							ctor: '_Tuple2',
+							_0: 'date',
+							_1: _elm_lang$core$Json_Encode$string(
+								_user$project$Utils$dateToString(date))
+						},
+						_1: {
+							ctor: '::',
+							_0: {
+								ctor: '_Tuple2',
+								_0: 'sets',
+								_1: _elm_lang$core$Json_Encode$list(
+									_elm_lang$core$Array$toList(sets))
+							},
+							_1: {ctor: '[]'}
+						}
+					});
+			},
+			A2(_user$project$Utils$traverseArray, _user$project$Data_Workout$setEncoder, _p9._0));
 	});
-var _user$project$Data$ValidSet = F3(
-	function (a, b, c) {
-		return {exercise_id: a, reps: b, weight: c};
-	});
-var _user$project$Data$toValidSet = function (_p6) {
-	var _p7 = _p6;
-	return A3(
-		_elm_lang$core$Maybe$map2,
-		_user$project$Data$ValidSet(_p7.exercise.id),
-		_p7.reps,
-		_p7.weight);
+var _user$project$Data_Workout$decodeDate = A2(
+	_elm_lang$core$Json_Decode$andThen,
+	_elm_lang$core$Result$withDefault(
+		_elm_lang$core$Json_Decode$fail('no date')),
+	A2(
+		_elm_lang$core$Json_Decode$map,
+		_elm_lang$core$Result$map(_elm_lang$core$Json_Decode$succeed),
+		A2(_elm_lang$core$Json_Decode$map, _elm_lang$core$Date$fromString, _elm_lang$core$Json_Decode$string)));
+var _user$project$Data_Workout$sets = function (_p10) {
+	var _p11 = _p10;
+	return _elm_lang$core$Array$toList(_p11._0);
 };
-var _user$project$Data$EditableWorkout = function (a) {
-	return {sets: a};
-};
-var _user$project$Data$ValidWorkout = F2(
+var _user$project$Data_Workout$CompletedWorkout = F2(
 	function (a, b) {
 		return {date: a, sets: b};
 	});
-var _user$project$Data$toValidWorkout = F2(
-	function (workout, date) {
+var _user$project$Data_Workout$CompletedSet = F3(
+	function (a, b, c) {
+		return {exercise_id: a, reps: b, weight: c};
+	});
+var _user$project$Data_Workout$decodeSet = A4(
+	_elm_lang$core$Json_Decode$map3,
+	_user$project$Data_Workout$CompletedSet,
+	A2(_elm_lang$core$Json_Decode$field, 'exercise_id', _elm_lang$core$Json_Decode$int),
+	A2(_elm_lang$core$Json_Decode$field, 'reps', _elm_lang$core$Json_Decode$int),
+	A2(_elm_lang$core$Json_Decode$field, 'weight', _elm_lang$core$Json_Decode$float));
+var _user$project$Data_Workout$decodeWorkout = A3(
+	_elm_lang$core$Json_Decode$map2,
+	_user$project$Data_Workout$CompletedWorkout,
+	A2(_elm_lang$core$Json_Decode$field, 'date', _user$project$Data_Workout$decodeDate),
+	A2(
+		_elm_lang$core$Json_Decode$field,
+		'sets',
+		_elm_lang$core$Json_Decode$list(_user$project$Data_Workout$decodeSet)));
+var _user$project$Data_Workout$Weighted = function (a) {
+	return {ctor: 'Weighted', _0: a};
+};
+var _user$project$Data_Workout$JustReps = function (a) {
+	return {ctor: 'JustReps', _0: a};
+};
+var _user$project$Data_Workout$emptySet = function (_p12) {
+	var _p13 = _p12;
+	var _p15 = _p13;
+	var _p14 = _p13.type_;
+	if (_p14.ctor === 'Reps') {
+		return _user$project$Data_Workout$JustReps(
+			{
+				ctor: '_Tuple2',
+				_0: _p15,
+				_1: {reps: _elm_lang$core$Maybe$Nothing, reps_input: ''}
+			});
+	} else {
+		return _user$project$Data_Workout$Weighted(
+			{
+				ctor: '_Tuple2',
+				_0: _p15,
+				_1: {reps: _elm_lang$core$Maybe$Nothing, reps_input: '', weight: _elm_lang$core$Maybe$Nothing, weight_input: ''}
+			});
+	}
+};
+var _user$project$Data_Workout$Workout = function (a) {
+	return {ctor: 'Workout', _0: a};
+};
+var _user$project$Data_Workout$makeEditable = F2(
+	function (exercises, _p16) {
+		var _p17 = _p16;
+		var findEx = F2(
+			function (id, exs) {
+				return _elm_lang$core$List$head(
+					A2(
+						_elm_lang$core$List$filter,
+						function (ex) {
+							return _elm_lang$core$Native_Utils.eq(ex.id, id);
+						},
+						exs));
+			});
+		var makeEditableSet = function (set) {
+			return A2(
+				_elm_lang$core$Maybe$map,
+				function (ex) {
+					var _p18 = ex.type_;
+					if (_p18.ctor === 'Reps') {
+						return _user$project$Data_Workout$JustReps(
+							{
+								ctor: '_Tuple2',
+								_0: ex,
+								_1: {
+									reps: _elm_lang$core$Maybe$Just(set.reps),
+									reps_input: _elm_lang$core$Basics$toString(set.reps)
+								}
+							});
+					} else {
+						return _user$project$Data_Workout$Weighted(
+							{
+								ctor: '_Tuple2',
+								_0: ex,
+								_1: {
+									reps: _elm_lang$core$Maybe$Just(set.reps),
+									weight: _elm_lang$core$Maybe$Just(set.weight),
+									reps_input: _elm_lang$core$Basics$toString(set.reps),
+									weight_input: _elm_lang$core$Basics$toString(set.weight)
+								}
+							});
+					}
+				},
+				A2(findEx, set.exercise_id, exercises));
+		};
 		return A2(
 			_elm_lang$core$Maybe$map,
-			_user$project$Data$ValidWorkout(date),
+			_user$project$Data_Workout$Workout,
+			A2(
+				_user$project$Utils$traverseArray,
+				makeEditableSet,
+				_elm_lang$core$Array$fromList(_p17.sets)));
+	});
+var _user$project$Data_Workout$empty = _user$project$Data_Workout$Workout(_elm_lang$core$Array$empty);
+var _user$project$Data_Workout$addSet = F2(
+	function (set, _p19) {
+		var _p20 = _p19;
+		return _user$project$Data_Workout$Workout(
+			A2(_elm_lang$core$Array$push, set, _p20._0));
+	});
+var _user$project$Data_Workout$addEmptySet = F2(
+	function (e, w) {
+		return A2(
+			_user$project$Data_Workout$addSet,
+			_user$project$Data_Workout$emptySet(e),
+			w);
+	});
+var _user$project$Data_Workout$copySet = F2(
+	function (index, _p21) {
+		var _p22 = _p21;
+		var _p24 = _p22._0;
+		return A2(
+			_elm_lang$core$Maybe$withDefault,
+			_p22,
 			A2(
 				_elm_lang$core$Maybe$map,
-				_elm_lang$core$Array$toList,
-				A2(_user$project$Utils$traverseArray, _user$project$Data$toValidSet, workout.sets)));
+				function (_p23) {
+					return _user$project$Data_Workout$Workout(
+						A3(_user$project$Utils$insertInArray, index, _p24, _p23));
+				},
+				A2(_elm_lang$core$Array$get, index, _p24)));
 	});
-var _user$project$Data$SavedWorkout = F3(
-	function (a, b, c) {
-		return {id: a, date: b, sets: c};
+var _user$project$Data_Workout$removeSet = F2(
+	function (index, _p25) {
+		var _p26 = _p25;
+		return _user$project$Data_Workout$Workout(
+			A2(_user$project$Utils$removeFromArray, index, _p26._0));
+	});
+var _user$project$Data_Workout$updateSet = F3(
+	function (index, f, _p27) {
+		var _p28 = _p27;
+		return _user$project$Data_Workout$Workout(
+			A3(_user$project$Utils$updateInArray, index, f, _p28._0));
+	});
+var _user$project$Data_Workout$updateReps = F3(
+	function (reps, index, w) {
+		var update = function (set) {
+			var _p29 = set;
+			if (_p29.ctor === 'JustReps') {
+				return _user$project$Data_Workout$JustReps(
+					{
+						ctor: '_Tuple2',
+						_0: _p29._0._0,
+						_1: A2(_user$project$Data_Set$updateReps, reps, _p29._0._1)
+					});
+			} else {
+				return _user$project$Data_Workout$Weighted(
+					{
+						ctor: '_Tuple2',
+						_0: _p29._0._0,
+						_1: A2(_user$project$Data_Set$updateReps, reps, _p29._0._1)
+					});
+			}
+		};
+		return A3(_user$project$Data_Workout$updateSet, index, update, w);
+	});
+var _user$project$Data_Workout$updateWeight = F3(
+	function (weight, index, w) {
+		var update = function (set) {
+			var _p30 = set;
+			if (_p30.ctor === 'JustReps') {
+				return set;
+			} else {
+				return _user$project$Data_Workout$Weighted(
+					{
+						ctor: '_Tuple2',
+						_0: _p30._0._0,
+						_1: A2(_user$project$Data_Set$updateWeight, weight, _p30._0._1)
+					});
+			}
+		};
+		return A3(_user$project$Data_Workout$updateSet, index, update, w);
 	});
 
 var _user$project$Requests$endpoint = 'http://api.mygains.se';
@@ -10000,7 +9659,14 @@ var _user$project$Requests$get = F3(
 				withCredentials: false
 			});
 	});
-var _user$project$Requests$getExercises = A2(_user$project$Requests$get, '/exercises', _user$project$Data$exerciseDecoder);
+var _user$project$Requests$getWorkouts = A2(
+	_user$project$Requests$get,
+	'/workouts',
+	_elm_lang$core$Json_Decode$list(_user$project$Data_Workout$decodeWorkout));
+var _user$project$Requests$getExercises = A2(
+	_user$project$Requests$get,
+	'/exercises',
+	_elm_lang$core$Json_Decode$list(_user$project$Data_Exercise$exerciseDecoder));
 var _user$project$Requests$refreshToken = A2(
 	_user$project$Requests$get,
 	'/refresh',
@@ -10058,37 +9724,9 @@ var _user$project$Requests$createWorkout = F2(
 			_user$project$Requests$post,
 			'/workouts',
 			A2(_elm_lang$core$Json_Decode$field, 'id', _elm_lang$core$Json_Decode$int),
-			_user$project$Data$workoutEncoder(workout),
+			workout,
 			token);
 	});
-
-var _user$project$Route$routeToUrl = function (route) {
-	var _p0 = route;
-	switch (_p0.ctor) {
-		case 'Workout':
-			return '#/workout';
-		case 'Login':
-			return '#/login';
-		default:
-			return '#/404';
-	}
-};
-var _user$project$Route$NotFound = {ctor: 'NotFound'};
-var _user$project$Route$Loading = {ctor: 'Loading'};
-var _user$project$Route$Login = {ctor: 'Login'};
-var _user$project$Route$Workout = {ctor: 'Workout'};
-var _user$project$Route$locationToRoute = function (_p1) {
-	var _p2 = _p1;
-	var _p3 = _p2.hash;
-	switch (_p3) {
-		case '#/workout':
-			return _user$project$Route$Workout;
-		case '#/login':
-			return _user$project$Route$Login;
-		default:
-			return _user$project$Route$NotFound;
-	}
-};
 
 var _user$project$Main$numberInput = F2(
 	function (val, handler) {
@@ -10099,14 +9737,26 @@ var _user$project$Main$numberInput = F2(
 				_0: _elm_lang$html$Html_Attributes$type_('number'),
 				_1: {
 					ctor: '::',
-					_0: _elm_lang$html$Html_Attributes$class('full-width border-gray border-radius-1 padding-1 border-gray'),
+					_0: _elm_lang$html$Html_Attributes$class('number-input'),
 					_1: {
 						ctor: '::',
-						_0: _elm_lang$html$Html_Attributes$value(val),
+						_0: _elm_lang$html$Html_Attributes$pattern('[0-9]*'),
 						_1: {
 							ctor: '::',
-							_0: _elm_lang$html$Html_Events$onInput(handler),
-							_1: {ctor: '[]'}
+							_0: _elm_lang$html$Html_Attributes$min('0'),
+							_1: {
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$placeholder('#'),
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$value(val),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$html$Html_Events$onInput(handler),
+										_1: {ctor: '[]'}
+									}
+								}
+							}
 						}
 					}
 				}
@@ -10122,7 +9772,7 @@ var _user$project$Main$primaryButton = F2(
 				_0: _elm_lang$html$Html_Events$onClick(handler),
 				_1: {
 					ctor: '::',
-					_0: _elm_lang$html$Html_Attributes$class('margin-b-1 full-width block bg-primary color-white padding-1 border-radius-1'),
+					_0: _elm_lang$html$Html_Attributes$class('button'),
 					_1: {ctor: '[]'}
 				}
 			},
@@ -10132,54 +9782,176 @@ var _user$project$Main$primaryButton = F2(
 				_1: {ctor: '[]'}
 			});
 	});
+var _user$project$Main$btnClass = A2(
+	_elm_lang$core$String$join,
+	' ',
+	{
+		ctor: '::',
+		_0: 'padding-1',
+		_1: {
+			ctor: '::',
+			_0: 'border-radius-1',
+			_1: {
+				ctor: '::',
+				_0: 'bold',
+				_1: {
+					ctor: '::',
+					_0: 'uppercase',
+					_1: {
+						ctor: '::',
+						_0: 'letter-spacing-2',
+						_1: {
+							ctor: '::',
+							_0: 'bg-white',
+							_1: {ctor: '[]'}
+						}
+					}
+				}
+			}
+		}
+	});
+var _user$project$Main$successLinkBtn = A2(_elm_lang$core$Basics_ops['++'], _user$project$Main$btnClass, ' color-success');
+var _user$project$Main$disabledLinkBtn = A2(_elm_lang$core$Basics_ops['++'], _user$project$Main$btnClass, ' color-gray-1 cursor-disabled');
+var _user$project$Main$modal = function (visible) {
+	return _elm_lang$html$Html$div(
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html_Attributes$class('fixed transition-transform bg-white padding-1 shadow-2'),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$html$Html_Attributes$style(
+					{
+						ctor: '::',
+						_0: {ctor: '_Tuple2', _0: 'z-index', _1: '2'},
+						_1: {
+							ctor: '::',
+							_0: {ctor: '_Tuple2', _0: 'top', _1: '50px'},
+							_1: {
+								ctor: '::',
+								_0: {ctor: '_Tuple2', _0: 'width', _1: '250px'},
+								_1: {
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: 'left', _1: '50vw'},
+									_1: {
+										ctor: '::',
+										_0: {ctor: '_Tuple2', _0: 'margin-left', _1: '-125px'},
+										_1: {
+											ctor: '::',
+											_0: {
+												ctor: '_Tuple2',
+												_0: 'transform',
+												_1: visible ? 'translateY(0)' : 'translateY(-400px'
+											},
+											_1: {ctor: '[]'}
+										}
+									}
+								}
+							}
+						}
+					}),
+				_1: {ctor: '[]'}
+			}
+		});
+};
+var _user$project$Main$delay = F2(
+	function (ms, msg) {
+		return A2(
+			_elm_lang$core$Task$perform,
+			_elm_lang$core$Basics$always(msg),
+			_elm_lang$core$Process$sleep(ms * _elm_lang$core$Time$millisecond));
+	});
 var _user$project$Main$remember = _elm_lang$core$Native_Platform.outgoingPort(
 	'remember',
 	function (v) {
 		return [v._0, v._1];
 	});
-var _user$project$Main$saveToken = function (token) {
+var _user$project$Main$rememberToken = function (token) {
 	return _user$project$Main$remember(
 		{ctor: '_Tuple2', _0: 'jwt', _1: token});
 };
+var _user$project$Main$rememberWorkout = F2(
+	function (w, d) {
+		return A2(
+			_elm_lang$core$Maybe$withDefault,
+			_elm_lang$core$Platform_Cmd$none,
+			A2(
+				_elm_lang$core$Maybe$map,
+				function (str) {
+					return _user$project$Main$remember(
+						{ctor: '_Tuple2', _0: 'workout', _1: str});
+				},
+				A2(
+					_elm_lang$core$Maybe$map,
+					_elm_lang$core$Json_Encode$encode(0),
+					A2(_user$project$Data_Workout$encodeWorkout, d, w))));
+	});
 var _user$project$Main$forget = _elm_lang$core$Native_Platform.outgoingPort(
 	'forget',
 	function (v) {
 		return v;
 	});
-var _user$project$Main$removeToken = _user$project$Main$forget('jwt');
-var _user$project$Main$Model = F6(
-	function (a, b, c, d, e, f) {
-		return {sidebarIsOpen: a, exercises: b, workout: c, page: d, api_token: e, login_form: f};
+var _user$project$Main$forgetToken = _user$project$Main$forget('jwt');
+var _user$project$Main$forgetWorkout = _user$project$Main$forget('workout');
+var _user$project$Main$LoggedInState = F7(
+	function (a, b, c, d, e, f, g) {
+		return {token: a, exercises: b, workout: c, date: d, uiState: e, workoutSavedState: f, setAnimation: g};
 	});
-var _user$project$Main$LoginForm = F4(
+var _user$project$Main$LoggedOutState = F4(
 	function (a, b, c, d) {
-		return {username: a, password: b, in_progress: c, error_message: d};
+		return {email: a, password: b, logging_in: c, error: d};
 	});
-var _user$project$Main$emptyLoginForm = A4(_user$project$Main$LoginForm, '', '', false, _elm_lang$core$Maybe$Nothing);
-var _user$project$Main$model = F2(
-	function (route, token) {
-		return A6(
-			_user$project$Main$Model,
-			true,
-			{ctor: '[]'},
-			_user$project$Data$EditableWorkout(_elm_lang$core$Array$empty),
-			route,
-			token,
-			_user$project$Main$emptyLoginForm);
-	});
-var _user$project$Main$NavigateTo = function (a) {
-	return {ctor: 'NavigateTo', _0: a};
+var _user$project$Main$LoggedOut = function (a) {
+	return {ctor: 'LoggedOut', _0: a};
 };
-var _user$project$Main$SetExercises = function (a) {
-	return {ctor: 'SetExercises', _0: a};
+var _user$project$Main$initialModel = _user$project$Main$LoggedOut(
+	A4(_user$project$Main$LoggedOutState, '', '', false, _elm_lang$core$Maybe$Nothing));
+var _user$project$Main$LoggedIn = function (a) {
+	return {ctor: 'LoggedIn', _0: a};
 };
-var _user$project$Main$SetRoute = function (a) {
-	return {ctor: 'SetRoute', _0: a};
+var _user$project$Main$Error = function (a) {
+	return {ctor: 'Error', _0: a};
 };
+var _user$project$Main$Success = function (a) {
+	return {ctor: 'Success', _0: a};
+};
+var _user$project$Main$Loading = {ctor: 'Loading'};
+var _user$project$Main$NotAsked = {ctor: 'NotAsked'};
+var _user$project$Main$AddingSet = function (a) {
+	return {ctor: 'AddingSet', _0: a};
+};
+var _user$project$Main$RemovingSet = function (a) {
+	return {ctor: 'RemovingSet', _0: a};
+};
+var _user$project$Main$CloningSet = function (a) {
+	return {ctor: 'CloningSet', _0: a};
+};
+var _user$project$Main$WorkoutWasNotSaved = function (a) {
+	return {ctor: 'WorkoutWasNotSaved', _0: a};
+};
+var _user$project$Main$WorkoutWasSaved = {ctor: 'WorkoutWasSaved'};
+var _user$project$Main$SavingWorkout = {ctor: 'SavingWorkout'};
+var _user$project$Main$ConfirmingWorkout = {ctor: 'ConfirmingWorkout'};
+var _user$project$Main$AddingSets = {ctor: 'AddingSets'};
+var _user$project$Main$EditingWorkout = {ctor: 'EditingWorkout'};
+var _user$project$Main$LoggedOutMsg = function (a) {
+	return {ctor: 'LoggedOutMsg', _0: a};
+};
+var _user$project$Main$LoggedInMsg = function (a) {
+	return {ctor: 'LoggedInMsg', _0: a};
+};
+var _user$project$Main$Noop = {ctor: 'Noop'};
+var _user$project$Main$UpdateDate = function (a) {
+	return {ctor: 'UpdateDate', _0: a};
+};
+var _user$project$Main$WorkoutSaved = {ctor: 'WorkoutSaved'};
 var _user$project$Main$SaveWorkout = {ctor: 'SaveWorkout'};
+var _user$project$Main$SetWasRemoved = function (a) {
+	return {ctor: 'SetWasRemoved', _0: a};
+};
 var _user$project$Main$RemoveSet = function (a) {
 	return {ctor: 'RemoveSet', _0: a};
 };
+var _user$project$Main$SetWasCloned = {ctor: 'SetWasCloned'};
 var _user$project$Main$CloneSet = function (a) {
 	return {ctor: 'CloneSet', _0: a};
 };
@@ -10191,88 +9963,143 @@ var _user$project$Main$UpdateReps = F2(
 	function (a, b) {
 		return {ctor: 'UpdateReps', _0: a, _1: b};
 	});
-var _user$project$Main$setForm = F2(
-	function (index, _p0) {
-		var _p1 = _p0;
-		var star = _user$project$Data$isValidSet(_p1) ? '' : '*';
+var _user$project$Main$setItem = F3(
+	function (animation, index, set) {
+		var classes = function () {
+			var _p0 = animation;
+			if (_p0.ctor === 'Just') {
+				switch (_p0._0.ctor) {
+					case 'AddingSet':
+						return _elm_lang$core$Native_Utils.eq(_p0._0._0, index) ? 'add-set' : '';
+					case 'CloningSet':
+						return (_elm_lang$core$Native_Utils.cmp(_p0._0._0, index) < 0) ? 'copy-set' : '';
+					default:
+						var _p1 = _p0._0._0;
+						return _elm_lang$core$Native_Utils.eq(_p1, index) ? 'remove-set' : ((_elm_lang$core$Native_Utils.cmp(_p1, index) < 0) ? 'copy-set a-reverse' : '');
+				}
+			} else {
+				return '';
+			}
+		}();
+		var inputs = function () {
+			var _p2 = set;
+			if (_p2.ctor === 'JustReps') {
+				return {
+					ctor: '::',
+					_0: A2(
+						_user$project$Main$numberInput,
+						_p2._0._1.reps_input,
+						_user$project$Main$UpdateReps(index)),
+					_1: {ctor: '[]'}
+				};
+			} else {
+				return {
+					ctor: '::',
+					_0: A2(
+						_user$project$Main$numberInput,
+						_p2._0._1.reps_input,
+						_user$project$Main$UpdateReps(index)),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_user$project$Main$numberInput,
+							_p2._0._1.weight_input,
+							_user$project$Main$UpdateWeight(index)),
+						_1: {ctor: '[]'}
+					}
+				};
+			}
+		}();
 		return A2(
 			_elm_lang$html$Html$div,
 			{
 				ctor: '::',
-				_0: _elm_lang$html$Html_Attributes$class('margin-b-1'),
-				_1: {ctor: '[]'}
+				_0: _elm_lang$html$Html_Attributes$class(classes),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$html$Html_Events$onDoubleClick(
+						_user$project$Main$CloneSet(index)),
+					_1: {ctor: '[]'}
+				}
 			},
 			{
 				ctor: '::',
 				_0: A2(
-					_elm_lang$html$Html$h5,
-					{ctor: '[]'},
+					_elm_lang$html$Html$div,
 					{
 						ctor: '::',
-						_0: _elm_lang$html$Html$text(
-							A2(_elm_lang$core$Basics_ops['++'], _p1.exercise.name, star)),
-						_1: {ctor: '[]'}
-					}),
-				_1: {
-					ctor: '::',
-					_0: A2(
-						_elm_lang$html$Html$div,
-						{
+						_0: _elm_lang$html$Html_Attributes$class('bg-white margin-1 shadow-1'),
+						_1: {
 							ctor: '::',
-							_0: _elm_lang$html$Html_Attributes$class('flex'),
+							_0: _elm_lang$html$Html_Attributes$style(
+								{
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: 'z-index', _1: '1'},
+									_1: {
+										ctor: '::',
+										_0: {ctor: '_Tuple2', _0: 'padding-bottom', _1: '16px'},
+										_1: {ctor: '[]'}
+									}
+								}),
 							_1: {ctor: '[]'}
-						},
-						{
+						}
+					},
+					{
+						ctor: '::',
+						_0: A2(
+							_elm_lang$html$Html$h5,
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$class('uppercase font-size-2 letter-spacing-2 color-gray-2'),
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$style(
+										{
+											ctor: '::',
+											_0: {ctor: '_Tuple2', _0: 'line-height', _1: '24px'},
+											_1: {
+												ctor: '::',
+												_0: {ctor: '_Tuple2', _0: 'margin-left', _1: '6px'},
+												_1: {ctor: '[]'}
+											}
+										}),
+									_1: {ctor: '[]'}
+								}
+							},
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html$text(
+									A2(
+										_elm_lang$core$Basics_ops['++'],
+										_elm_lang$core$Basics$toString(index + 1),
+										A2(
+											_elm_lang$core$Basics_ops['++'],
+											'. ',
+											function (_) {
+												return _.name;
+											}(
+												_user$project$Data_Workout$exercise(set))))),
+								_1: {ctor: '[]'}
+							}),
+						_1: {
 							ctor: '::',
 							_0: A2(
 								_elm_lang$html$Html$div,
 								{
 									ctor: '::',
-									_0: _elm_lang$html$Html_Attributes$class('flex-fill'),
+									_0: _elm_lang$html$Html_Attributes$class('flex'),
 									_1: {ctor: '[]'}
 								},
 								{
 									ctor: '::',
 									_0: A2(
-										_user$project$Main$numberInput,
-										_p1.reps_input,
-										_user$project$Main$UpdateReps(index)),
-									_1: {ctor: '[]'}
-								}),
-							_1: {
-								ctor: '::',
-								_0: A2(
-									_elm_lang$html$Html$div,
-									{
-										ctor: '::',
-										_0: _elm_lang$html$Html_Attributes$class('flex-fill'),
-										_1: {ctor: '[]'}
-									},
-									{
-										ctor: '::',
-										_0: A2(
-											_user$project$Main$numberInput,
-											_p1.weight_input,
-											_user$project$Main$UpdateWeight(index)),
-										_1: {ctor: '[]'}
-									}),
-								_1: {
-									ctor: '::',
-									_0: A2(
 										_elm_lang$html$Html$div,
 										{
 											ctor: '::',
-											_0: _elm_lang$html$Html_Attributes$class('flex-fit'),
+											_0: _elm_lang$html$Html_Attributes$class('flex-fill padding-h-2'),
 											_1: {ctor: '[]'}
 										},
-										{
-											ctor: '::',
-											_0: A2(
-												_user$project$Main$primaryButton,
-												'Duplicera',
-												_user$project$Main$CloneSet(index)),
-											_1: {ctor: '[]'}
-										}),
+										inputs),
 									_1: {
 										ctor: '::',
 										_0: A2(
@@ -10280,105 +10107,579 @@ var _user$project$Main$setForm = F2(
 											{
 												ctor: '::',
 												_0: _elm_lang$html$Html_Attributes$class('flex-fit'),
-												_1: {ctor: '[]'}
+												_1: {
+													ctor: '::',
+													_0: _elm_lang$html$Html_Attributes$style(
+														{
+															ctor: '::',
+															_0: {ctor: '_Tuple2', _0: 'padding', _1: '0 8px'},
+															_1: {ctor: '[]'}
+														}),
+													_1: {ctor: '[]'}
+												}
 											},
 											{
 												ctor: '::',
 												_0: A2(
-													_user$project$Main$primaryButton,
-													'Radera',
-													_user$project$Main$RemoveSet(index)),
-												_1: {ctor: '[]'}
+													_elm_lang$html$Html$button,
+													{
+														ctor: '::',
+														_0: _elm_lang$html$Html_Attributes$style(
+															{
+																ctor: '::',
+																_0: {ctor: '_Tuple2', _0: 'height', _1: '48px'},
+																_1: {
+																	ctor: '::',
+																	_0: {ctor: '_Tuple2', _0: 'width', _1: '48px'},
+																	_1: {
+																		ctor: '::',
+																		_0: {ctor: '_Tuple2', _0: 'background-color', _1: 'transparent'},
+																		_1: {ctor: '[]'}
+																	}
+																}
+															}),
+														_1: {
+															ctor: '::',
+															_0: _elm_lang$html$Html_Attributes$class('no-focus'),
+															_1: {
+																ctor: '::',
+																_0: _elm_lang$html$Html_Events$onClick(
+																	_user$project$Main$CloneSet(index)),
+																_1: {ctor: '[]'}
+															}
+														}
+													},
+													{
+														ctor: '::',
+														_0: A2(
+															_elm_lang$html$Html$span,
+															{
+																ctor: '::',
+																_0: _elm_lang$html$Html_Attributes$class('icon-copy'),
+																_1: {ctor: '[]'}
+															},
+															{ctor: '[]'}),
+														_1: {ctor: '[]'}
+													}),
+												_1: {
+													ctor: '::',
+													_0: A2(
+														_elm_lang$html$Html$button,
+														{
+															ctor: '::',
+															_0: _elm_lang$html$Html_Attributes$style(
+																{
+																	ctor: '::',
+																	_0: {ctor: '_Tuple2', _0: 'height', _1: '48px'},
+																	_1: {
+																		ctor: '::',
+																		_0: {ctor: '_Tuple2', _0: 'width', _1: '48px'},
+																		_1: {
+																			ctor: '::',
+																			_0: {ctor: '_Tuple2', _0: 'background-color', _1: 'transparent'},
+																			_1: {ctor: '[]'}
+																		}
+																	}
+																}),
+															_1: {
+																ctor: '::',
+																_0: _elm_lang$html$Html_Attributes$class('no-focus'),
+																_1: {
+																	ctor: '::',
+																	_0: _elm_lang$html$Html_Events$onClick(
+																		_user$project$Main$RemoveSet(index)),
+																	_1: {ctor: '[]'}
+																}
+															}
+														},
+														{
+															ctor: '::',
+															_0: A2(
+																_elm_lang$html$Html$span,
+																{
+																	ctor: '::',
+																	_0: _elm_lang$html$Html_Attributes$class('icon-remove'),
+																	_1: {ctor: '[]'}
+																},
+																{ctor: '[]'}),
+															_1: {ctor: '[]'}
+														}),
+													_1: {ctor: '[]'}
+												}
 											}),
 										_1: {ctor: '[]'}
 									}
-								}
-							}
-						}),
-					_1: {ctor: '[]'}
-				}
+								}),
+							_1: {ctor: '[]'}
+						}
+					}),
+				_1: {ctor: '[]'}
 			});
 	});
-var _user$project$Main$setList = function (sets) {
-	return A2(
-		_elm_lang$html$Html$div,
-		{ctor: '[]'},
-		_elm_lang$core$Array$toList(
-			A2(_elm_lang$core$Array$indexedMap, _user$project$Main$setForm, sets)));
-};
+var _user$project$Main$setList = F2(
+	function (sets, animation) {
+		return A2(
+			_elm_lang$html$Html$div,
+			{
+				ctor: '::',
+				_0: _elm_lang$html$Html_Attributes$style(
+					{
+						ctor: '::',
+						_0: {ctor: '_Tuple2', _0: 'margin-top', _1: '62px'},
+						_1: {
+							ctor: '::',
+							_0: {ctor: '_Tuple2', _0: 'z-index', _1: '1'},
+							_1: {ctor: '[]'}
+						}
+					}),
+				_1: {ctor: '[]'}
+			},
+			A2(
+				_elm_lang$core$List$indexedMap,
+				_user$project$Main$setItem(animation),
+				sets));
+	});
+var _user$project$Main$SetWasAdded = {ctor: 'SetWasAdded'};
 var _user$project$Main$AddSet = function (a) {
 	return {ctor: 'AddSet', _0: a};
 };
-var _user$project$Main$addExerciseButton = function (_p2) {
-	var _p3 = _p2;
+var _user$project$Main$addExerciseButton = function (_p3) {
+	var _p4 = _p3;
 	return A2(
-		_user$project$Main$primaryButton,
-		_p3.name,
-		_user$project$Main$AddSet(_p3));
+		_elm_lang$html$Html$button,
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html_Attributes$class('button block full-width text-left'),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$html$Html_Events$onClick(
+					_user$project$Main$AddSet(_p4)),
+				_1: {ctor: '[]'}
+			}
+		},
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html$text(_p4.name),
+			_1: {ctor: '[]'}
+		});
 };
 var _user$project$Main$exerciseList = function (exercises) {
 	return A2(
 		_elm_lang$html$Html$div,
-		{ctor: '[]'},
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html_Attributes$class('margin-b-2'),
+			_1: {ctor: '[]'}
+		},
 		A2(_elm_lang$core$List$map, _user$project$Main$addExerciseButton, exercises));
 };
-var _user$project$Main$ToggleSidebar = {ctor: 'ToggleSidebar'};
-var _user$project$Main$addButton = A2(
-	_elm_lang$html$Html$div,
-	{
-		ctor: '::',
-		_0: _elm_lang$html$Html_Attributes$class('text-center fixed padding-1 bg-success border-round color-white shadow-2'),
-		_1: {
+var _user$project$Main$TransitionTo = function (a) {
+	return {ctor: 'TransitionTo', _0: a};
+};
+var _user$project$Main$saveWorkout = F3(
+	function (token, date, workout) {
+		return A2(
+			_elm_lang$core$Task$attempt,
+			function (res) {
+				var _p5 = res;
+				if (_p5.ctor === 'Err') {
+					return _user$project$Main$LoggedInMsg(
+						_user$project$Main$TransitionTo(
+							_user$project$Main$WorkoutWasNotSaved('Could not save workout')));
+				} else {
+					return _user$project$Main$LoggedInMsg(_user$project$Main$WorkoutSaved);
+				}
+			},
+			A2(
+				_elm_lang$core$Maybe$withDefault,
+				_elm_lang$core$Task$succeed(0),
+				A2(
+					_elm_lang$core$Maybe$map,
+					_elm_lang$http$Http$toTask,
+					A2(
+						_elm_lang$core$Maybe$map,
+						_user$project$Requests$createWorkout(token),
+						A2(_user$project$Data_Workout$encodeWorkout, date, workout)))));
+	});
+var _user$project$Main$loggedInUpdate = F2(
+	function (msg, model) {
+		var _p6 = msg;
+		switch (_p6.ctor) {
+			case 'TransitionTo':
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{uiState: _p6._0})),
+					_1: _elm_lang$core$Platform_Cmd$none
+				};
+			case 'SaveWorkout':
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{uiState: _user$project$Main$SavingWorkout})),
+					_1: A3(_user$project$Main$saveWorkout, model.token, model.date, model.workout)
+				};
+			case 'WorkoutSaved':
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{workout: _user$project$Data_Workout$empty, uiState: _user$project$Main$WorkoutWasSaved})),
+					_1: _user$project$Main$forgetWorkout
+				};
+			case 'AddSet':
+				var workout = A2(_user$project$Data_Workout$addEmptySet, _p6._0, model.workout);
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{
+								workout: workout,
+								setAnimation: _elm_lang$core$Maybe$Just(
+									_user$project$Main$AddingSet(
+										_elm_lang$core$List$length(
+											_user$project$Data_Workout$sets(workout)) - 1))
+							})),
+					_1: _elm_lang$core$Platform_Cmd$batch(
+						{
+							ctor: '::',
+							_0: A2(_user$project$Main$rememberWorkout, workout, model.date),
+							_1: {
+								ctor: '::',
+								_0: A2(
+									_user$project$Main$delay,
+									200,
+									_user$project$Main$LoggedInMsg(_user$project$Main$SetWasAdded)),
+								_1: {ctor: '[]'}
+							}
+						})
+				};
+			case 'SetWasAdded':
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{setAnimation: _elm_lang$core$Maybe$Nothing})),
+					_1: _elm_lang$core$Platform_Cmd$none
+				};
+			case 'UpdateReps':
+				var workout = A3(_user$project$Data_Workout$updateReps, _p6._1, _p6._0, model.workout);
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{workout: workout})),
+					_1: A2(_user$project$Main$rememberWorkout, workout, model.date)
+				};
+			case 'UpdateWeight':
+				var workout = A3(_user$project$Data_Workout$updateWeight, _p6._1, _p6._0, model.workout);
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{workout: workout})),
+					_1: A2(_user$project$Main$rememberWorkout, workout, model.date)
+				};
+			case 'CloneSet':
+				var _p7 = _p6._0;
+				var workout = A2(_user$project$Data_Workout$copySet, _p7, model.workout);
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{
+								workout: workout,
+								setAnimation: _elm_lang$core$Maybe$Just(
+									_user$project$Main$CloningSet(_p7))
+							})),
+					_1: _elm_lang$core$Platform_Cmd$batch(
+						{
+							ctor: '::',
+							_0: A2(_user$project$Main$rememberWorkout, workout, model.date),
+							_1: {
+								ctor: '::',
+								_0: A2(
+									_user$project$Main$delay,
+									200,
+									_user$project$Main$LoggedInMsg(_user$project$Main$SetWasCloned)),
+								_1: {ctor: '[]'}
+							}
+						})
+				};
+			case 'SetWasCloned':
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{setAnimation: _elm_lang$core$Maybe$Nothing})),
+					_1: _elm_lang$core$Platform_Cmd$none
+				};
+			case 'RemoveSet':
+				var _p8 = _p6._0;
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{
+								setAnimation: _elm_lang$core$Maybe$Just(
+									_user$project$Main$RemovingSet(_p8))
+							})),
+					_1: A2(
+						_user$project$Main$delay,
+						180,
+						_user$project$Main$LoggedInMsg(
+							_user$project$Main$SetWasRemoved(_p8)))
+				};
+			case 'SetWasRemoved':
+				var workout = A2(_user$project$Data_Workout$removeSet, _p6._0, model.workout);
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{workout: workout, setAnimation: _elm_lang$core$Maybe$Nothing})),
+					_1: A2(_user$project$Main$rememberWorkout, workout, model.date)
+				};
+			default:
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedIn(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{
+								date: A2(
+									_elm_lang$core$Result$withDefault,
+									model.date,
+									_elm_lang$core$Date$fromString(_p6._0))
+							})),
+					_1: _elm_lang$core$Platform_Cmd$none
+				};
+		}
+	});
+var _user$project$Main$confirmWorkout = function (_p9) {
+	var _p10 = _p9;
+	var _p11 = function () {
+		var _p12 = _p10.uiState;
+		switch (_p12.ctor) {
+			case 'ConfirmingWorkout':
+				return {
+					ctor: '_Tuple2',
+					_0: true,
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_lang$html$Html$input,
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$type_('date'),
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$class('font-size-1 padding-2'),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$html$Html_Attributes$value(
+											_user$project$Utils$dateToString(_p10.date)),
+										_1: {
+											ctor: '::',
+											_0: _elm_lang$html$Html_Events$onInput(_user$project$Main$UpdateDate),
+											_1: {ctor: '[]'}
+										}
+									}
+								}
+							},
+							{ctor: '[]'}),
+						_1: {
+							ctor: '::',
+							_0: A2(
+								_elm_lang$html$Html$button,
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$class(
+										A2(_elm_lang$core$Basics_ops['++'], _user$project$Main$successLinkBtn, ' block full-width no-focus')),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$html$Html_Events$onClick(_user$project$Main$SaveWorkout),
+										_1: {ctor: '[]'}
+									}
+								},
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html$text('save the workout'),
+									_1: {ctor: '[]'}
+								}),
+							_1: {ctor: '[]'}
+						}
+					}
+				};
+			case 'SavingWorkout':
+				return {
+					ctor: '_Tuple2',
+					_0: true,
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_lang$html$Html$button,
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$class(
+									A2(_elm_lang$core$Basics_ops['++'], _user$project$Main$disabledLinkBtn, ' block full-width no-focus')),
+								_1: {ctor: '[]'}
+							},
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html$text('saving...'),
+								_1: {ctor: '[]'}
+							}),
+						_1: {ctor: '[]'}
+					}
+				};
+			case 'WorkoutWasSaved':
+				return {
+					ctor: '_Tuple2',
+					_0: true,
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_lang$html$Html$h5,
+							{ctor: '[]'},
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html$text('Your workout was saved'),
+								_1: {ctor: '[]'}
+							}),
+						_1: {
+							ctor: '::',
+							_0: A2(
+								_elm_lang$html$Html$button,
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$class(
+										A2(_elm_lang$core$Basics_ops['++'], _user$project$Main$disabledLinkBtn, ' block full-width no-focus')),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$html$Html_Events$onClick(
+											_user$project$Main$TransitionTo(_user$project$Main$EditingWorkout)),
+										_1: {ctor: '[]'}
+									}
+								},
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html$text('OK'),
+									_1: {ctor: '[]'}
+								}),
+							_1: {ctor: '[]'}
+						}
+					}
+				};
+			default:
+				return {
+					ctor: '_Tuple2',
+					_0: false,
+					_1: {ctor: '[]'}
+				};
+		}
+	}();
+	var visible = _p11._0;
+	var content = _p11._1;
+	return A2(
+		_elm_lang$html$Html$div,
+		{
 			ctor: '::',
 			_0: _elm_lang$html$Html_Attributes$style(
 				{
 					ctor: '::',
-					_0: {ctor: '_Tuple2', _0: 'height', _1: '50px'},
-					_1: {
-						ctor: '::',
-						_0: {ctor: '_Tuple2', _0: 'width', _1: '50px'},
-						_1: {
-							ctor: '::',
-							_0: {ctor: '_Tuple2', _0: 'bottom', _1: '40px'},
-							_1: {
-								ctor: '::',
-								_0: {ctor: '_Tuple2', _0: 'right', _1: '40px'},
-								_1: {
-									ctor: '::',
-									_0: {ctor: '_Tuple2', _0: 'font-size', _1: '16px'},
-									_1: {ctor: '[]'}
-								}
-							}
-						}
-					}
+					_0: {ctor: '_Tuple2', _0: 'z-index', _1: '2'},
+					_1: {ctor: '[]'}
 				}),
 			_1: {
 				ctor: '::',
-				_0: _elm_lang$html$Html_Events$onClick(_user$project$Main$ToggleSidebar),
+				_0: _elm_lang$html$Html_Attributes$class('relative'),
 				_1: {ctor: '[]'}
 			}
-		}
-	},
-	{
-		ctor: '::',
-		_0: _elm_lang$html$Html$text('+'),
-		_1: {ctor: '[]'}
-	});
-var _user$project$Main$sidebar = F2(
-	function (exercises, isOpen) {
+		},
+		{
+			ctor: '::',
+			_0: A2(
+				_elm_lang$html$Html$div,
+				{
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$class('fixed cover bg-trans-1 transition-opacity'),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$html$Html_Attributes$style(
+							{
+								ctor: '::',
+								_0: {ctor: '_Tuple2', _0: 'z-index', _1: '1'},
+								_1: {
+									ctor: '::',
+									_0: {
+										ctor: '_Tuple2',
+										_0: 'opacity',
+										_1: visible ? '1' : '0'
+									},
+									_1: {
+										ctor: '::',
+										_0: {
+											ctor: '_Tuple2',
+											_0: 'bottom',
+											_1: visible ? '0' : 'auto'
+										},
+										_1: {ctor: '[]'}
+									}
+								}
+							}),
+						_1: {ctor: '[]'}
+					}
+				},
+				{ctor: '[]'}),
+			_1: {
+				ctor: '::',
+				_0: A2(_user$project$Main$modal, visible, content),
+				_1: {ctor: '[]'}
+			}
+		});
+};
+var _user$project$Main$sidebar = F3(
+	function (exercises, workout, isOpen) {
 		return A2(
 			_elm_lang$html$Html$div,
-			{ctor: '[]'},
+			{
+				ctor: '::',
+				_0: _elm_lang$html$Html_Attributes$class('relative'),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$style(
+						{
+							ctor: '::',
+							_0: {ctor: '_Tuple2', _0: 'z-index', _1: '3'},
+							_1: {ctor: '[]'}
+						}),
+					_1: {ctor: '[]'}
+				}
+			},
 			{
 				ctor: '::',
 				_0: A2(
 					_elm_lang$html$Html$div,
 					{
 						ctor: '::',
-						_0: _elm_lang$html$Html_Attributes$class('fixed'),
+						_0: _elm_lang$html$Html_Attributes$class('fixed bg-trans-1 transition-opacity'),
 						_1: {
 							ctor: '::',
-							_0: _elm_lang$html$Html_Events$onClick(_user$project$Main$ToggleSidebar),
+							_0: _elm_lang$html$Html_Events$onClick(
+								_user$project$Main$TransitionTo(_user$project$Main$EditingWorkout)),
 							_1: {
 								ctor: '::',
 								_0: _elm_lang$html$Html_Attributes$style(
@@ -10398,7 +10699,15 @@ var _user$project$Main$sidebar = F2(
 														_0: 'bottom',
 														_1: isOpen ? '0' : ''
 													},
-													_1: {ctor: '[]'}
+													_1: {
+														ctor: '::',
+														_0: {
+															ctor: '_Tuple2',
+															_0: 'opacity',
+															_1: isOpen ? '1' : '0'
+														},
+														_1: {ctor: '[]'}
+													}
 												}
 											}
 										}
@@ -10414,7 +10723,7 @@ var _user$project$Main$sidebar = F2(
 						_elm_lang$html$Html$div,
 						{
 							ctor: '::',
-							_0: _elm_lang$html$Html_Attributes$class('padding-1 bg-white fixed transition shadow-1'),
+							_0: _elm_lang$html$Html_Attributes$class('bg-white fixed transition-transform shadow-1 overflow-scroll'),
 							_1: {
 								ctor: '::',
 								_0: _elm_lang$html$Html_Attributes$style(
@@ -10435,7 +10744,7 @@ var _user$project$Main$sidebar = F2(
 														_0: {
 															ctor: '_Tuple2',
 															_0: 'transform',
-															_1: isOpen ? 'translateX(-200px)' : ''
+															_1: isOpen ? 'translateX(-210px)' : ''
 														},
 														_1: {ctor: '[]'}
 													}
@@ -10455,548 +10764,515 @@ var _user$project$Main$sidebar = F2(
 				}
 			});
 	});
-var _user$project$Main$LoginFailed = function (a) {
-	return {ctor: 'LoginFailed', _0: a};
-};
-var _user$project$Main$UserLoggedIn = function (a) {
-	return {ctor: 'UserLoggedIn', _0: a};
-};
-var _user$project$Main$SendLoginRequest = {ctor: 'SendLoginRequest'};
-var _user$project$Main$UpdatePassword = function (a) {
-	return {ctor: 'UpdatePassword', _0: a};
-};
-var _user$project$Main$UpdateUsername = function (a) {
-	return {ctor: 'UpdateUsername', _0: a};
-};
-var _user$project$Main$TokenRefreshSucceeded = F2(
-	function (a, b) {
-		return {ctor: 'TokenRefreshSucceeded', _0: a, _1: b};
-	});
-var _user$project$Main$TokenRefreshFailed = {ctor: 'TokenRefreshFailed'};
-var _user$project$Main$init = F2(
-	function (flags, loc) {
-		var handler = function (_p4) {
-			return A2(
-				_elm_lang$core$Result$withDefault,
-				_user$project$Main$TokenRefreshFailed,
-				A2(
-					_elm_lang$core$Result$map,
-					_user$project$Main$TokenRefreshSucceeded(
-						_user$project$Route$locationToRoute(loc)),
-					_p4));
-		};
-		return A2(
-			_elm_lang$core$Result$withDefault,
-			{
-				ctor: '_Tuple2',
-				_0: A2(_user$project$Main$model, _user$project$Route$Login, _elm_lang$core$Maybe$Nothing),
-				_1: _elm_lang$navigation$Navigation$newUrl(
-					_user$project$Route$routeToUrl(_user$project$Route$Login))
-			},
-			A2(
-				_elm_lang$core$Result$map,
-				function (cmd) {
-					return {
-						ctor: '_Tuple2',
-						_0: A2(_user$project$Main$model, _user$project$Route$Loading, _elm_lang$core$Maybe$Nothing),
-						_1: cmd
-					};
-				},
-				A2(
-					_elm_lang$core$Result$map,
-					function (_p5) {
-						return A2(
-							_elm_lang$http$Http$send,
-							handler,
-							_user$project$Requests$refreshToken(_p5));
-					},
-					A2(
-						_elm_lang$core$Json_Decode$decodeValue,
-						A2(_elm_lang$core$Json_Decode$field, 'api_token', _elm_lang$core$Json_Decode$string),
-						flags))));
-	});
-var _user$project$Main$Noop = {ctor: 'Noop'};
-var _user$project$Main$loadData = function (token) {
-	var exerciseHandler = function (exs) {
-		return A2(
-			_elm_lang$core$Result$withDefault,
-			_user$project$Main$Noop,
-			A2(_elm_lang$core$Result$map, _user$project$Main$SetExercises, exs));
-	};
-	return _elm_lang$core$Platform_Cmd$batch(
-		{
-			ctor: '::',
-			_0: A2(
-				_elm_lang$http$Http$send,
-				exerciseHandler,
-				_user$project$Requests$getExercises(token)),
-			_1: {ctor: '[]'}
-		});
-};
-var _user$project$Main$saveWorkout = function (_p6) {
-	var _p7 = _p6;
-	var _p8 = _p7.api_token;
-	if (_p8.ctor === 'Just') {
-		return A2(
-			_elm_lang$core$Task$attempt,
-			_elm_lang$core$Basics$always(_user$project$Main$Noop),
-			A2(
-				_elm_lang$core$Task$andThen,
-				_elm_lang$core$Maybe$withDefault(
-					_elm_lang$core$Task$succeed(0)),
-				A2(
-					_elm_lang$core$Task$map,
-					_elm_lang$core$Maybe$map(_elm_lang$http$Http$toTask),
-					A2(
-						_elm_lang$core$Task$map,
-						_elm_lang$core$Maybe$map(
-							_user$project$Requests$createWorkout(_p8._0)),
-						A2(
-							_elm_lang$core$Task$map,
-							_user$project$Data$toValidWorkout(_p7.workout),
-							_elm_lang$core$Date$now)))));
-	} else {
-		return _elm_lang$core$Platform_Cmd$none;
-	}
-};
-var _user$project$Main$update = F2(
-	function (msg, model) {
-		var _p9 = msg;
-		switch (_p9.ctor) {
-			case 'Noop':
-				return {ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none};
-			case 'NavigateTo':
-				return {
-					ctor: '_Tuple2',
-					_0: model,
-					_1: _elm_lang$navigation$Navigation$newUrl(
-						_user$project$Route$routeToUrl(_p9._0))
-				};
-			case 'SetExercises':
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{exercises: _p9._0}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'UserLoggedIn':
-				var _p10 = _p9._0;
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							api_token: _elm_lang$core$Maybe$Just(_p10)
-						}),
-					_1: _elm_lang$core$Platform_Cmd$batch(
-						{
-							ctor: '::',
-							_0: _elm_lang$navigation$Navigation$newUrl(
-								_user$project$Route$routeToUrl(_user$project$Route$Workout)),
-							_1: {
-								ctor: '::',
-								_0: _user$project$Main$loadData(_p10),
-								_1: {
-									ctor: '::',
-									_0: _user$project$Main$saveToken(_p10),
-									_1: {ctor: '[]'}
-								}
-							}
-						})
-				};
-			case 'TokenRefreshFailed':
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{api_token: _elm_lang$core$Maybe$Nothing}),
-					_1: _elm_lang$core$Platform_Cmd$batch(
-						{
-							ctor: '::',
-							_0: _elm_lang$navigation$Navigation$newUrl(
-								_user$project$Route$routeToUrl(_user$project$Route$Login)),
-							_1: {
-								ctor: '::',
-								_0: _user$project$Main$removeToken,
-								_1: {ctor: '[]'}
-							}
-						})
-				};
-			case 'TokenRefreshSucceeded':
-				var _p11 = _p9._1;
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							api_token: _elm_lang$core$Maybe$Just(_p11),
-							page: _p9._0
-						}),
-					_1: _elm_lang$core$Platform_Cmd$batch(
-						{
-							ctor: '::',
-							_0: _user$project$Main$saveToken(_p11),
-							_1: {
-								ctor: '::',
-								_0: _user$project$Main$loadData(_p11),
-								_1: {ctor: '[]'}
-							}
-						})
-				};
-			case 'LoginFailed':
-				var loginForm = model.login_form;
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							login_form: _elm_lang$core$Native_Utils.update(
-								loginForm,
-								{
-									error_message: _elm_lang$core$Maybe$Just(_p9._0),
-									in_progress: false
-								})
-						}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'ToggleSidebar':
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{sidebarIsOpen: !model.sidebarIsOpen}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'SaveWorkout':
-				return {
-					ctor: '_Tuple2',
-					_0: model,
-					_1: _user$project$Main$saveWorkout(model)
-				};
-			case 'AddSet':
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							workout: A2(_user$project$Data$addSet, _p9._0, model.workout)
-						}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'UpdateReps':
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							workout: A3(_user$project$Data$updateReps, _p9._1, _p9._0, model.workout)
-						}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'UpdateWeight':
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							workout: A3(_user$project$Data$updateWeight, _p9._1, _p9._0, model.workout)
-						}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'CloneSet':
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							workout: A2(_user$project$Data$cloneSet, _p9._0, model.workout)
-						}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'RemoveSet':
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							workout: A2(_user$project$Data$removeSet, _p9._0, model.workout)
-						}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'SetRoute':
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{page: _p9._0}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'UpdateUsername':
-				var loginForm = model.login_form;
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							login_form: _elm_lang$core$Native_Utils.update(
-								loginForm,
-								{username: _p9._0})
-						}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'UpdatePassword':
-				var loginForm = model.login_form;
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							login_form: _elm_lang$core$Native_Utils.update(
-								loginForm,
-								{password: _p9._0})
-						}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			default:
-				var handler = function (res) {
-					var _p12 = res;
-					if (_p12.ctor === 'Ok') {
-						return _user$project$Main$UserLoggedIn(_p12._0);
-					} else {
-						return _user$project$Main$LoginFailed('');
-					}
-				};
-				var loginForm = model.login_form;
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{
-							login_form: _elm_lang$core$Native_Utils.update(
-								loginForm,
-								{in_progress: true})
-						}),
-					_1: A2(
-						_elm_lang$http$Http$send,
-						handler,
-						A2(_user$project$Requests$login, model.login_form.username, model.login_form.password))
-				};
-		}
-	});
-var _user$project$Main$alreadyLoggedInView = A2(
-	_elm_lang$html$Html$div,
-	{
+var _user$project$Main$saveButton = function (active) {
+	var attrs = active ? {
 		ctor: '::',
-		_0: _elm_lang$html$Html_Attributes$class('padding-1'),
-		_1: {ctor: '[]'}
-	},
-	{
-		ctor: '::',
-		_0: A2(
-			_elm_lang$html$Html$h2,
-			{
-				ctor: '::',
-				_0: _elm_lang$html$Html_Attributes$class('margin-b-1'),
-				_1: {ctor: '[]'}
-			},
-			{
-				ctor: '::',
-				_0: _elm_lang$html$Html$text('Already logged in'),
-				_1: {ctor: '[]'}
-			}),
+		_0: _elm_lang$html$Html_Attributes$class(
+			A2(_elm_lang$core$Basics_ops['++'], _user$project$Main$successLinkBtn, ' no-focus')),
 		_1: {
 			ctor: '::',
-			_0: A2(_user$project$Main$primaryButton, 'Log out', _user$project$Main$Noop),
-			_1: {
-				ctor: '::',
-				_0: A2(
-					_user$project$Main$primaryButton,
-					'Go inside',
-					_user$project$Main$NavigateTo(_user$project$Route$Workout)),
-				_1: {ctor: '[]'}
-			}
+			_0: _elm_lang$html$Html_Events$onClick(
+				_user$project$Main$TransitionTo(_user$project$Main$ConfirmingWorkout)),
+			_1: {ctor: '[]'}
 		}
-	});
-var _user$project$Main$loginForm = function (model) {
-	var keyDownHandler = function (key) {
-		var _p13 = key;
-		if (_p13 === 13) {
-			return _user$project$Main$SendLoginRequest;
-		} else {
-			return _user$project$Main$Noop;
+	} : {
+		ctor: '::',
+		_0: _elm_lang$html$Html_Attributes$class(
+			A2(_elm_lang$core$Basics_ops['++'], _user$project$Main$disabledLinkBtn, ' no-focus')),
+		_1: {
+			ctor: '::',
+			_0: _elm_lang$html$Html_Attributes$disabled(true),
+			_1: {ctor: '[]'}
 		}
 	};
-	var button = model.login_form.in_progress ? A2(_user$project$Main$primaryButton, 'Logging in...', _user$project$Main$Noop) : A2(_user$project$Main$primaryButton, 'Log in', _user$project$Main$SendLoginRequest);
-	return A2(
-		_elm_lang$html$Html$div,
-		{
-			ctor: '::',
-			_0: _elm_lang$html$Html_Attributes$class('padding-1'),
-			_1: {ctor: '[]'}
-		},
-		{
-			ctor: '::',
-			_0: A2(
-				_elm_lang$html$Html$input,
-				{
-					ctor: '::',
-					_0: _elm_lang$html$Html_Attributes$type_('text'),
-					_1: {
-						ctor: '::',
-						_0: _elm_lang$html$Html_Attributes$class('block full-width padding-1 margin-b-1 border-gray border-radius-1'),
-						_1: {
-							ctor: '::',
-							_0: _elm_lang$html$Html_Attributes$value(model.login_form.username),
-							_1: {
-								ctor: '::',
-								_0: _elm_lang$html$Html_Events$onInput(_user$project$Main$UpdateUsername),
-								_1: {ctor: '[]'}
-							}
-						}
-					}
-				},
-				{ctor: '[]'}),
-			_1: {
-				ctor: '::',
-				_0: A2(
-					_elm_lang$html$Html$input,
-					{
-						ctor: '::',
-						_0: _elm_lang$html$Html_Attributes$type_('password'),
-						_1: {
-							ctor: '::',
-							_0: _elm_lang$html$Html_Attributes$class('block full-width padding-1 margin-b-1 border-gray border-radius-1'),
-							_1: {
-								ctor: '::',
-								_0: _elm_lang$html$Html_Attributes$value(model.login_form.password),
-								_1: {
-									ctor: '::',
-									_0: _elm_lang$html$Html_Events$onInput(_user$project$Main$UpdatePassword),
-									_1: {
-										ctor: '::',
-										_0: _user$project$Utils$onKeyDown(keyDownHandler),
-										_1: {ctor: '[]'}
-									}
-								}
-							}
-						}
-					},
-					{ctor: '[]'}),
-				_1: {
-					ctor: '::',
-					_0: button,
-					_1: {
-						ctor: '::',
-						_0: _elm_lang$html$Html$text(
-							A2(_elm_lang$core$Maybe$withDefault, '', model.login_form.error_message)),
-						_1: {ctor: '[]'}
-					}
-				}
-			}
-		});
-};
-var _user$project$Main$saveButton = function (active) {
-	var _p14 = function () {
-		var _p15 = active;
-		if (_p15 === true) {
-			return {ctor: '_Tuple2', _0: _user$project$Main$SaveWorkout, _1: 'border-radius-1 block full-width padding-1 bg-success color-white'};
-		} else {
-			return {ctor: '_Tuple2', _0: _user$project$Main$Noop, _1: 'border-radius-1 block full-width padding-1 bg-gray-1 color-white cursor-disabled'};
-		}
-	}();
-	var handler = _p14._0;
-	var classes = _p14._1;
 	return A2(
 		_elm_lang$html$Html$button,
-		{
-			ctor: '::',
-			_0: _elm_lang$html$Html_Attributes$class(classes),
-			_1: {
-				ctor: '::',
-				_0: _elm_lang$html$Html_Attributes$disabled(!active),
-				_1: {
-					ctor: '::',
-					_0: _elm_lang$html$Html_Events$onClick(handler),
-					_1: {ctor: '[]'}
-				}
-			}
-		},
+		attrs,
 		{
 			ctor: '::',
 			_0: _elm_lang$html$Html$text('Save'),
 			_1: {ctor: '[]'}
 		});
 };
-var _user$project$Main$view = function (model) {
-	var _p16 = model.page;
-	switch (_p16.ctor) {
-		case 'Loading':
-			return _elm_lang$html$Html$text('Loading...');
-		case 'NotFound':
-			return _elm_lang$html$Html$text('404');
-		case 'Login':
-			var _p17 = model.api_token;
-			if (_p17.ctor === 'Just') {
-				return _user$project$Main$alreadyLoggedInView;
-			} else {
-				return _user$project$Main$loginForm(model);
+var _user$project$Main$navbar = function (model) {
+	return A2(
+		_elm_lang$html$Html$div,
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html_Attributes$class('fixed shadow-1 bg-white flex flex-align-center'),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$html$Html_Attributes$style(
+					{
+						ctor: '::',
+						_0: {ctor: '_Tuple2', _0: 'top', _1: '0'},
+						_1: {
+							ctor: '::',
+							_0: {ctor: '_Tuple2', _0: 'left', _1: '0'},
+							_1: {
+								ctor: '::',
+								_0: {ctor: '_Tuple2', _0: 'right', _1: '0'},
+								_1: {
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: 'height', _1: '58px'},
+									_1: {
+										ctor: '::',
+										_0: {ctor: '_Tuple2', _0: 'padding', _1: '0 10px'},
+										_1: {
+											ctor: '::',
+											_0: {ctor: '_Tuple2', _0: 'z-index', _1: '2'},
+											_1: {ctor: '[]'}
+										}
+									}
+								}
+							}
+						}
+					}),
+				_1: {ctor: '[]'}
 			}
-		default:
-			return A2(
+		},
+		{
+			ctor: '::',
+			_0: A2(
 				_elm_lang$html$Html$div,
 				{
 					ctor: '::',
-					_0: _elm_lang$html$Html_Attributes$class('padding-1'),
+					_0: _elm_lang$html$Html_Attributes$class('flex-fit'),
+					_1: {ctor: '[]'}
+				},
+				{
+					ctor: '::',
+					_0: _user$project$Main$saveButton(
+						_user$project$Data_Workout$isValidWorkout(model.workout)),
+					_1: {ctor: '[]'}
+				}),
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_elm_lang$html$Html$div,
+					{
+						ctor: '::',
+						_0: _elm_lang$html$Html_Attributes$class('flex-fill text-right'),
+						_1: {ctor: '[]'}
+					},
+					{
+						ctor: '::',
+						_0: A2(
+							_elm_lang$html$Html$button,
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$class('no-focus'),
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$style(
+										{
+											ctor: '::',
+											_0: {ctor: '_Tuple2', _0: 'height', _1: '48px'},
+											_1: {
+												ctor: '::',
+												_0: {ctor: '_Tuple2', _0: 'width', _1: '48px'},
+												_1: {
+													ctor: '::',
+													_0: {ctor: '_Tuple2', _0: 'background-color', _1: 'transparent'},
+													_1: {
+														ctor: '::',
+														_0: {ctor: '_Tuple2', _0: 'font-size', _1: '1.5em'},
+														_1: {ctor: '[]'}
+													}
+												}
+											}
+										}),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$html$Html_Events$onClick(
+											_user$project$Main$TransitionTo(_user$project$Main$AddingSets)),
+										_1: {ctor: '[]'}
+									}
+								}
+							},
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html$text('+'),
+								_1: {ctor: '[]'}
+							}),
+						_1: {ctor: '[]'}
+					}),
+				_1: {ctor: '[]'}
+			}
+		});
+};
+var _user$project$Main$LoginCompleted = function (a) {
+	return {ctor: 'LoginCompleted', _0: a};
+};
+var _user$project$Main$init = function (flags) {
+	var workout = function (exs) {
+		return A2(
+			_elm_lang$core$Maybe$withDefault,
+			_user$project$Data_Workout$empty,
+			A2(
+				_elm_lang$core$Maybe$andThen,
+				_user$project$Data_Workout$makeEditable(exs),
+				_elm_lang$core$Result$toMaybe(
+					A2(
+						_elm_lang$core$Result$andThen,
+						_elm_lang$core$Json_Decode$decodeString(_user$project$Data_Workout$decodeWorkout),
+						A2(
+							_elm_lang$core$Json_Decode$decodeValue,
+							A2(_elm_lang$core$Json_Decode$field, 'workout', _elm_lang$core$Json_Decode$string),
+							flags)))));
+	};
+	var makeLogin = F3(
+		function (exs, date, token) {
+			return A7(
+				_user$project$Main$LoggedInState,
+				token,
+				exs,
+				workout(exs),
+				date,
+				_user$project$Main$EditingWorkout,
+				_user$project$Main$NotAsked,
+				_elm_lang$core$Maybe$Nothing);
+		});
+	var exercises = function (_p13) {
+		return _elm_lang$http$Http$toTask(
+			_user$project$Requests$getExercises(_p13));
+	};
+	var date = _elm_lang$core$Date$now;
+	var attemptLogin = function (token) {
+		return A4(
+			_elm_lang$core$Task$map3,
+			makeLogin,
+			exercises(token),
+			date,
+			_elm_lang$core$Task$succeed(token));
+	};
+	var token = A2(
+		_elm_lang$core$Maybe$map,
+		_elm_lang$http$Http$toTask,
+		_elm_lang$core$Result$toMaybe(
+			A2(
+				_elm_lang$core$Result$map,
+				_user$project$Requests$refreshToken,
+				A2(
+					_elm_lang$core$Json_Decode$decodeValue,
+					A2(_elm_lang$core$Json_Decode$field, 'api_token', _elm_lang$core$Json_Decode$string),
+					flags))));
+	return {
+		ctor: '_Tuple2',
+		_0: _user$project$Main$initialModel,
+		_1: A2(
+			_elm_lang$core$Maybe$withDefault,
+			_elm_lang$core$Platform_Cmd$none,
+			A2(
+				_elm_lang$core$Maybe$map,
+				_elm_lang$core$Task$attempt(
+					function (_p14) {
+						return _user$project$Main$LoggedOutMsg(
+							_user$project$Main$LoginCompleted(_p14));
+					}),
+				A2(
+					_elm_lang$core$Maybe$map,
+					_elm_lang$core$Task$andThen(attemptLogin),
+					token)))
+	};
+};
+var _user$project$Main$loggedOutUpdate = F2(
+	function (msg, model) {
+		var _p15 = msg;
+		switch (_p15.ctor) {
+			case 'UpdateEmail':
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedOut(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{email: _p15._0})),
+					_1: _elm_lang$core$Platform_Cmd$none
+				};
+			case 'UpdatePassword':
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedOut(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{password: _p15._0})),
+					_1: _elm_lang$core$Platform_Cmd$none
+				};
+			case 'SendLoginRequest':
+				var request = A2(
+					_elm_lang$core$Task$attempt,
+					function (_p16) {
+						return _user$project$Main$LoggedOutMsg(
+							_user$project$Main$LoginCompleted(_p16));
+					},
+					A2(
+						_elm_lang$core$Task$andThen,
+						function (token) {
+							return A2(
+								_elm_lang$core$Task$andThen,
+								function (exs) {
+									return A2(
+										_elm_lang$core$Task$map,
+										function (date) {
+											return A7(_user$project$Main$LoggedInState, token, exs, _user$project$Data_Workout$empty, date, _user$project$Main$EditingWorkout, _user$project$Main$NotAsked, _elm_lang$core$Maybe$Nothing);
+										},
+										_elm_lang$core$Date$now);
+								},
+								_elm_lang$http$Http$toTask(
+									_user$project$Requests$getExercises(token)));
+						},
+						_elm_lang$http$Http$toTask(
+							A2(_user$project$Requests$login, model.email, model.password))));
+				return {
+					ctor: '_Tuple2',
+					_0: _user$project$Main$LoggedOut(
+						_elm_lang$core$Native_Utils.update(
+							model,
+							{logging_in: true})),
+					_1: request
+				};
+			default:
+				if (_p15._0.ctor === 'Ok') {
+					var _p17 = _p15._0._0;
+					return {
+						ctor: '_Tuple2',
+						_0: _user$project$Main$LoggedIn(_p17),
+						_1: _user$project$Main$rememberToken(_p17.token)
+					};
+				} else {
+					return {
+						ctor: '_Tuple2',
+						_0: _user$project$Main$LoggedOut(
+							_elm_lang$core$Native_Utils.update(
+								model,
+								{
+									error: _elm_lang$core$Maybe$Just('Cant log in')
+								})),
+						_1: _elm_lang$core$Platform_Cmd$none
+					};
+				}
+		}
+	});
+var _user$project$Main$update = F2(
+	function (msg, model) {
+		var _p18 = {ctor: '_Tuple2', _0: msg, _1: model};
+		_v8_2:
+		do {
+			if (_p18._1.ctor === 'LoggedIn') {
+				if (_p18._0.ctor === 'LoggedInMsg') {
+					return A2(_user$project$Main$loggedInUpdate, _p18._0._0, _p18._1._0);
+				} else {
+					break _v8_2;
+				}
+			} else {
+				if (_p18._0.ctor === 'LoggedOutMsg') {
+					return A2(_user$project$Main$loggedOutUpdate, _p18._0._0, _p18._1._0);
+				} else {
+					break _v8_2;
+				}
+			}
+		} while(false);
+		var log = A2(
+			_elm_lang$core$Debug$log,
+			'Unrecognized msg model combo',
+			{ctor: '_Tuple2', _0: msg, _1: model});
+		return {ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none};
+	});
+var _user$project$Main$SendLoginRequest = {ctor: 'SendLoginRequest'};
+var _user$project$Main$UpdatePassword = function (a) {
+	return {ctor: 'UpdatePassword', _0: a};
+};
+var _user$project$Main$UpdateEmail = function (a) {
+	return {ctor: 'UpdateEmail', _0: a};
+};
+var _user$project$Main$loginForm = function (_p19) {
+	var _p20 = _p19;
+	return A2(
+		_elm_lang$html$Html$div,
+		{ctor: '[]'},
+		{
+			ctor: '::',
+			_0: A2(
+				_elm_lang$html$Html$div,
+				{
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$class('fixed cover bg-trans-1 transition-opacity'),
 					_1: {
 						ctor: '::',
 						_0: _elm_lang$html$Html_Attributes$style(
 							{
 								ctor: '::',
-								_0: {ctor: '_Tuple2', _0: 'margin-bottom', _1: '100px'},
-								_1: {ctor: '[]'}
+								_0: {ctor: '_Tuple2', _0: 'z-index', _1: '1'},
+								_1: {
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: 'opacity', _1: '0'},
+									_1: {
+										ctor: '::',
+										_0: {ctor: '_Tuple2', _0: 'bottom', _1: '0'},
+										_1: {ctor: '[]'}
+									}
+								}
+							}),
+						_1: {ctor: '[]'}
+					}
+				},
+				{ctor: '[]'}),
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_user$project$Main$modal,
+					true,
+					{
+						ctor: '::',
+						_0: _elm_lang$html$Html$text(
+							A2(_elm_lang$core$Maybe$withDefault, '', _p20.error)),
+						_1: {
+							ctor: '::',
+							_0: A2(
+								_elm_lang$html$Html$input,
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html_Attributes$type_('email'),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$html$Html_Attributes$class('block full-width padding-1 margin-b-1 border-gray border-radius-1'),
+										_1: {
+											ctor: '::',
+											_0: _elm_lang$html$Html_Attributes$value(_p20.email),
+											_1: {
+												ctor: '::',
+												_0: _elm_lang$html$Html_Events$onInput(_user$project$Main$UpdateEmail),
+												_1: {ctor: '[]'}
+											}
+										}
+									}
+								},
+								{ctor: '[]'}),
+							_1: {
+								ctor: '::',
+								_0: A2(
+									_elm_lang$html$Html$input,
+									{
+										ctor: '::',
+										_0: _elm_lang$html$Html_Attributes$type_('password'),
+										_1: {
+											ctor: '::',
+											_0: _elm_lang$html$Html_Attributes$class('block full-width padding-1 margin-b-1 border-gray border-radius-1'),
+											_1: {
+												ctor: '::',
+												_0: _elm_lang$html$Html_Attributes$value(_p20.password),
+												_1: {
+													ctor: '::',
+													_0: _elm_lang$html$Html_Events$onInput(_user$project$Main$UpdatePassword),
+													_1: {ctor: '[]'}
+												}
+											}
+										}
+									},
+									{ctor: '[]'}),
+								_1: {
+									ctor: '::',
+									_0: A2(
+										_elm_lang$html$Html$button,
+										{
+											ctor: '::',
+											_0: _elm_lang$html$Html_Events$onClick(_user$project$Main$SendLoginRequest),
+											_1: {
+												ctor: '::',
+												_0: _elm_lang$html$Html_Attributes$class(
+													A2(_elm_lang$core$Basics_ops['++'], _user$project$Main$successLinkBtn, ' block full-width')),
+												_1: {ctor: '[]'}
+											}
+										},
+										{
+											ctor: '::',
+											_0: _elm_lang$html$Html$text('Log in'),
+											_1: {ctor: '[]'}
+										}),
+									_1: {ctor: '[]'}
+								}
+							}
+						}
+					}),
+				_1: {ctor: '[]'}
+			}
+		});
+};
+var _user$project$Main$view = function (model) {
+	var _p21 = model;
+	if (_p21.ctor === 'LoggedOut') {
+		return A2(
+			_elm_lang$html$Html$map,
+			_user$project$Main$LoggedOutMsg,
+			A2(
+				_elm_lang$html$Html$div,
+				{ctor: '[]'},
+				{
+					ctor: '::',
+					_0: _user$project$Main$loginForm(_p21._0),
+					_1: {ctor: '[]'}
+				}));
+	} else {
+		var _p23 = _p21._0;
+		var sidebarOpen = function () {
+			var _p22 = _p23.uiState;
+			if (_p22.ctor === 'AddingSets') {
+				return true;
+			} else {
+				return false;
+			}
+		}();
+		return A2(
+			_elm_lang$html$Html$map,
+			_user$project$Main$LoggedInMsg,
+			A2(
+				_elm_lang$html$Html$div,
+				{
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$class('relative'),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$html$Html_Attributes$style(
+							{
+								ctor: '::',
+								_0: {ctor: '_Tuple2', _0: 'padding-bottom', _1: '100px'},
+								_1: {
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: 'z-index', _1: '0'},
+									_1: {ctor: '[]'}
+								}
 							}),
 						_1: {ctor: '[]'}
 					}
 				},
 				{
 					ctor: '::',
-					_0: _user$project$Main$addButton,
+					_0: A2(
+						_user$project$Main$setList,
+						_user$project$Data_Workout$sets(_p23.workout),
+						_p23.setAnimation),
 					_1: {
 						ctor: '::',
-						_0: A2(_user$project$Main$sidebar, model.exercises, model.sidebarIsOpen),
+						_0: _user$project$Main$navbar(_p23),
 						_1: {
 							ctor: '::',
-							_0: _user$project$Main$setList(model.workout.sets),
+							_0: A3(_user$project$Main$sidebar, _p23.exercises, _p23.workout, sidebarOpen),
 							_1: {
 								ctor: '::',
-								_0: _user$project$Main$saveButton(
-									(!_elm_lang$core$Array$isEmpty(model.workout.sets)) && A3(
-										_elm_lang$core$Array$foldl,
-										F2(
-											function (s, p) {
-												return p && _user$project$Data$isValidSet(s);
-											}),
-										true,
-										model.workout.sets)),
+								_0: _user$project$Main$confirmWorkout(_p23),
 								_1: {ctor: '[]'}
 							}
 						}
 					}
-				});
+				}));
 	}
 };
-var _user$project$Main$main = A2(
-	_elm_lang$navigation$Navigation$programWithFlags,
-	function (_p18) {
-		return _user$project$Main$SetRoute(
-			_user$project$Route$locationToRoute(_p18));
-	},
+var _user$project$Main$main = _elm_lang$html$Html$programWithFlags(
 	{
 		init: _user$project$Main$init,
 		view: _user$project$Main$view,
 		update: _user$project$Main$update,
-		subscriptions: function (_p19) {
+		subscriptions: function (_p24) {
 			return _elm_lang$core$Platform_Sub$none;
 		}
 	})(_elm_lang$core$Json_Decode$value);
