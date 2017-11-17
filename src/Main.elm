@@ -1,27 +1,24 @@
 port module Main exposing (..)
 
 import Array exposing (Array)
-import Data.Exercise exposing (..)
-import Data.Workout as Workout exposing (..)
+import Colors
+import Data.Exercise as Exercise exposing (Exercise, ExerciseType(..))
 import Date exposing (Date)
+import Editor.Editor as Editor exposing (Workout)
 import Html exposing (Html, programWithFlags)
 import Html.Attributes exposing (class, disabled, min, pattern, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
+import Icon
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Process
-import Requests
-    exposing
-        ( createWorkout
-        , getExercises
-        , getWorkouts
-        , login
-        , refreshToken
-        )
+import Requests exposing (createWorkout, getExercises, login, refreshToken)
 import Task
 import Time
 import Utils exposing (..)
+import View.Form as Form
+import View.Modal as Modal
 
 
 -- Ports
@@ -49,7 +46,7 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = always Sub.none
         }
 
 
@@ -58,37 +55,29 @@ type Model
     | LoggedOut LoggedOutState
 
 
-type RemoteData a e
-    = NotAsked
-    | Loading
-    | Success a
-    | Error e
-
-
-type SetAnimation
-    = CloningSet Int
-    | RemovingSet Int
-    | AddingSet Int
-
-
 type alias LoggedInState =
     { token : String
-    , exercises : List Exercise
+    , exercises : List (Exercise {})
     , workout : Workout
     , date : Date
-    , uiState : UIState
-    , workoutSavedState : RemoteData CompletedWorkout String
-    , setAnimation : Maybe SetAnimation
+    , sidebarIsOpen : Bool
+    , modal : Maybe (Modal.Modal { content : ModalContent })
     }
 
 
-type UIState
-    = EditingWorkout
-    | AddingSets
-    | ConfirmingWorkout
-    | SavingWorkout
-    | WorkoutWasSaved
-    | WorkoutWasNotSaved String
+updateContent : ModalContent -> { a | content : ModalContent } -> { a | content : ModalContent }
+updateContent content modal =
+    { modal | content = content }
+
+
+type ModalContent
+    = WorkoutDone
+    | CreateExercise { name : String, type_ : Exercise.ExerciseType }
+
+
+makeLoggedInState : String -> Workout -> List (Exercise {}) -> Date -> LoggedInState
+makeLoggedInState token editor exercises date =
+    LoggedInState token exercises editor date False Nothing
 
 
 type alias LoggedOutState =
@@ -119,22 +108,20 @@ init flags =
         date =
             Date.now
 
-        exercises : String -> Task.Task Http.Error (List Exercise)
+        exercises : String -> Task.Task Http.Error (List (Exercise {}))
         exercises =
             getExercises >> Http.toTask
 
-        workout : List Exercise -> Workout
+        workout : List (Exercise {}) -> Workout
         workout exs =
             flags
                 |> Decode.decodeValue (Decode.field "workout" Decode.string)
-                |> Result.andThen (Decode.decodeString decodeWorkout)
-                |> Result.toMaybe
-                |> Maybe.andThen (makeEditable exs)
-                |> Maybe.withDefault Workout.empty
+                |> Result.andThen (Editor.fromString exs)
+                |> Result.withDefault Editor.empty
 
-        makeLogin : List Exercise -> Date -> String -> LoggedInState
+        makeLogin : List (Exercise {}) -> Date -> String -> LoggedInState
         makeLogin exs date token =
-            LoggedInState token exs (workout exs) date EditingWorkout NotAsked Nothing
+            makeLoggedInState token (workout exs) exs date
 
         attemptLogin : String -> Task.Task Http.Error LoggedInState
         attemptLogin token =
@@ -154,18 +141,18 @@ type Msg
 
 
 type LoggedInAction
-    = TransitionTo UIState
-    | AddSet Exercise
-    | SetWasAdded
-    | UpdateReps Int String
-    | UpdateWeight Int String
-    | CloneSet Int
-    | SetWasCloned
-    | RemoveSet Int
-    | SetWasRemoved Int
+    = OpenModal ModalContent
+    | UpdateModalState Modal.State
+    | UpdateModal ModalContent
+    | CloseModal
+    | ToggleSidebar
     | SaveWorkout
     | WorkoutSaved
-    | UpdateDate String
+    | WorkoutMsg Editor.Msg
+    | UpdateDate Date
+    | SaveWorkoutFailed
+    | SaveExercise String ExerciseType
+    | ExerciseSaved (Result Http.Error (Exercise {}))
 
 
 type LoggedOutAction
@@ -177,27 +164,23 @@ type LoggedOutAction
 
 saveWorkout : String -> Date -> Workout -> Cmd Msg
 saveWorkout token date workout =
-    encodeWorkout date workout
-        |> Maybe.map (createWorkout token)
-        |> Maybe.map Http.toTask
+    let
+        encoded =
+            Editor.encodeWorkout date workout
+    in
+    Maybe.map (createWorkout token >> Http.toTask) encoded
         |> Maybe.withDefault (Task.succeed 0)
         |> Task.attempt
-            (\res ->
-                case res of
-                    Err _ ->
-                        LoggedInMsg (TransitionTo (WorkoutWasNotSaved "Could not save workout"))
-
-                    Ok _ ->
-                        LoggedInMsg WorkoutSaved
+            (Result.map
+                (always (LoggedInMsg WorkoutSaved))
+                >> Result.withDefault (LoggedInMsg SaveWorkoutFailed)
             )
 
 
-rememberWorkout : Workout -> Date -> Cmd Msg
-rememberWorkout w d =
-    encodeWorkout d w
-        |> Maybe.map (Encode.encode 0)
-        |> Maybe.map (\str -> remember ( "workout", str ))
-        |> Maybe.withDefault Cmd.none
+rememberWorkout : Workout -> Cmd Msg
+rememberWorkout workout =
+    remember
+        ( "workout", Editor.toString workout )
 
 
 forgetWorkout : Cmd Msg
@@ -208,77 +191,67 @@ forgetWorkout =
 loggedInUpdate : LoggedInAction -> LoggedInState -> ( Model, Cmd Msg )
 loggedInUpdate msg model =
     case msg of
-        TransitionTo state ->
-            ( LoggedIn { model | uiState = state }, Cmd.none )
+        -- WORKOUT
+        WorkoutMsg msg ->
+            let
+                ( workout, cmd ) =
+                    Editor.update msg model.workout
+            in
+            ( LoggedIn { model | workout = workout }
+            , Cmd.batch
+                [ rememberWorkout workout
+                , Cmd.map (WorkoutMsg >> LoggedInMsg) cmd
+                ]
+            )
+
+        -- MODALS
+        OpenModal content ->
+            ( LoggedIn { model | modal = Just { state = Modal.IsOpening, content = content } }
+            , Process.sleep 17
+                |> Task.perform (always (LoggedInMsg (UpdateModalState Modal.IsOpen)))
+            )
+
+        UpdateModalState state ->
+            case state of
+                Modal.IsClosed ->
+                    ( LoggedIn { model | modal = Nothing }, Cmd.none )
+
+                _ ->
+                    ( LoggedIn { model | modal = Maybe.map (Modal.updateState state) model.modal }, Cmd.none )
+
+        UpdateModal content ->
+            ( LoggedIn { model | modal = Maybe.map (updateContent content) model.modal }, Cmd.none )
+
+        CloseModal ->
+            ( LoggedIn { model | modal = Maybe.map (Modal.updateState Modal.IsClosing) model.modal }, Cmd.none )
+
+        ToggleSidebar ->
+            ( LoggedIn { model | sidebarIsOpen = not model.sidebarIsOpen }, Cmd.none )
 
         SaveWorkout ->
-            ( LoggedIn { model | uiState = SavingWorkout }, saveWorkout model.token model.date model.workout )
+            ( LoggedIn model, saveWorkout model.token model.date model.workout )
 
         WorkoutSaved ->
-            ( LoggedIn { model | workout = Workout.empty, uiState = WorkoutWasSaved }, forgetWorkout )
+            ( LoggedIn { model | workout = Editor.empty, modal = Nothing }, forgetWorkout )
 
-        AddSet ex ->
-            let
-                workout =
-                    addEmptySet ex model.workout
-            in
-            ( LoggedIn { model | workout = workout, setAnimation = Just (AddingSet (List.length (Workout.sets workout) - 1)) }
-            , Cmd.batch
-                [ rememberWorkout workout model.date
-                , delay 200 (LoggedInMsg SetWasAdded)
-                ]
-            )
-
-        SetWasAdded ->
-            ( LoggedIn { model | setAnimation = Nothing }, Cmd.none )
-
-        UpdateReps index reps ->
-            let
-                workout =
-                    updateReps reps index model.workout
-            in
-            ( LoggedIn { model | workout = workout }, rememberWorkout workout model.date )
-
-        UpdateWeight index weight ->
-            let
-                workout =
-                    updateWeight weight index model.workout
-            in
-            ( LoggedIn { model | workout = workout }, rememberWorkout workout model.date )
-
-        CloneSet index ->
-            let
-                workout =
-                    copySet index model.workout
-            in
-            ( LoggedIn { model | workout = workout, setAnimation = Just (CloningSet index) }
-            , Cmd.batch
-                [ rememberWorkout workout model.date
-                , delay 200 (LoggedInMsg SetWasCloned)
-                ]
-            )
-
-        SetWasCloned ->
-            ( LoggedIn { model | setAnimation = Nothing }, Cmd.none )
-
-        RemoveSet index ->
-            ( LoggedIn { model | setAnimation = Just (RemovingSet index) }, delay 180 (LoggedInMsg (SetWasRemoved index)) )
-
-        SetWasRemoved index ->
-            let
-                workout =
-                    removeSet index model.workout
-            in
-            ( LoggedIn { model | workout = workout, setAnimation = Nothing }, rememberWorkout workout model.date )
+        SaveWorkoutFailed ->
+            ( LoggedIn model, Cmd.none )
 
         UpdateDate date ->
-            ( LoggedIn { model | date = Result.withDefault model.date (Date.fromString date) }, Cmd.none )
+            ( LoggedIn { model | date = date }, Cmd.none )
 
+        SaveExercise name type_ ->
+            ( LoggedIn model
+            , Requests.createExercise model.token (Exercise.encode name type_)
+                |> Http.toTask
+                |> Task.attempt (ExerciseSaved >> LoggedInMsg)
+            )
 
-delay : Float -> msg -> Cmd msg
-delay ms msg =
-    Process.sleep (ms * Time.millisecond)
-        |> Task.perform (always msg)
+        ExerciseSaved (Ok exercise) ->
+            ( LoggedIn { model | exercises = exercise :: model.exercises, modal = Nothing }, Cmd.none )
+
+        ExerciseSaved (Err _) ->
+            ( LoggedIn model, Cmd.none )
 
 
 loggedOutUpdate : LoggedOutAction -> LoggedOutState -> ( Model, Cmd Msg )
@@ -292,21 +265,15 @@ loggedOutUpdate msg model =
 
         SendLoginRequest ->
             let
-                request =
+                makeState token =
+                    Task.map2 (makeLoggedInState token Editor.empty) (Http.toTask (getExercises token)) Date.now
+
+                loginTask =
                     login model.email model.password
                         |> Http.toTask
-                        |> Task.andThen
-                            (\token ->
-                                Http.toTask (getExercises token)
-                                    |> Task.andThen
-                                        (\exs ->
-                                            Date.now
-                                                |> Task.map (\date -> LoggedInState token exs Workout.empty date EditingWorkout NotAsked Nothing)
-                                        )
-                            )
-                        |> Task.attempt (LoggedOutMsg << LoginCompleted)
+                        |> Task.andThen makeState
             in
-            ( LoggedOut { model | logging_in = True }, request )
+            ( LoggedOut { model | logging_in = True }, Task.attempt (LoginCompleted >> LoggedOutMsg) loginTask )
 
         LoginCompleted (Ok model) ->
             ( LoggedIn model, rememberToken model.token )
@@ -337,42 +304,91 @@ view model =
     case model of
         LoggedOut state ->
             Html.map LoggedOutMsg
-                (Html.div
-                    []
-                    [ loginForm state
+                (loginForm state)
+
+        LoggedIn state ->
+            Html.map LoggedInMsg
+                (layer 0
+                    [ layer 0 [ content state ]
+                    , layer 1 [ navbar state ]
+                    , layer 2 [ sidebar state ]
+                    , layer 3 (state.modal |> Maybe.map (modals state) |> Maybe.withDefault [])
                     ]
                 )
 
-        LoggedIn model ->
+
+layer : Int -> List (Html msg) -> Html msg
+layer z =
+    Html.div
+        [ class "relative"
+        , style [ ( "z-index", Basics.toString z ) ]
+        ]
+
+
+modals : LoggedInState -> Modal.Modal { content : ModalContent } -> List (Html LoggedInAction)
+modals model modal =
+    case modal.content of
+        WorkoutDone ->
+            [ Modal.view modal.state
+                UpdateModalState
+                [ Modal.title "Save workout"
+                , Modal.body
+                    [ Form.label "Date"
+                    , Form.date model.date UpdateDate
+                    ]
+                , Modal.footer
+                    [ Form.button "save" SaveWorkout
+                    , Form.button "cancel" CloseModal
+                    ]
+                ]
+            ]
+
+        CreateExercise form ->
             let
-                sidebarOpen =
-                    case model.uiState of
-                        AddingSets ->
+                isReps =
+                    case form.type_ of
+                        JustReps ->
                             True
 
-                        _ ->
+                        Weighted ->
                             False
+
+                setName str =
+                    UpdateModal (CreateExercise { form | name = str })
             in
-            Html.map LoggedInMsg
-                (Html.div
-                    [ class "relative"
-                    , style
-                        [ ( "padding-bottom", "100px" )
-                        , ( "z-index", "0" )
-                        ]
+            [ Modal.view modal.state
+                UpdateModalState
+                [ Modal.title "Create Exercise"
+                , Modal.body
+                    [ Form.label "Name"
+                    , Form.input "text" form.name setName
+                    , Form.label "Type"
+                    , Form.radio isReps "Reps" (UpdateModal (CreateExercise { form | type_ = JustReps }))
+                    , Form.radio (not isReps) "Reps × Weight" (UpdateModal (CreateExercise { form | type_ = Weighted }))
                     ]
-                    [ setList (Workout.sets model.workout) model.setAnimation
-                    , navbar model
-                    , sidebar model.exercises model.workout sidebarOpen
-                    , confirmWorkout model
+                , Modal.footer
+                    [ Form.button "save" (SaveExercise form.name form.type_)
+                    , Form.button "cancel" CloseModal
                     ]
-                )
+                ]
+            ]
+
+
+content : LoggedInState -> Html LoggedInAction
+content model =
+    Html.div
+        [ style
+            [ ( "padding", "58px 0" )
+            ]
+        ]
+        [ Html.map WorkoutMsg (Editor.setList model.workout)
+        ]
 
 
 navbar : LoggedInState -> Html LoggedInAction
 navbar model =
     Html.div
-        [ class "fixed shadow-1 bg-white flex flex-align-center"
+        [ class "fixed shadow-sm bg-white flex flex-align-center"
         , style
             [ ( "top", "0" )
             , ( "left", "0" )
@@ -385,388 +401,85 @@ navbar model =
         [ Html.div
             [ class "flex-fit"
             ]
-            [ saveButton (isValidWorkout model.workout)
+            [ saveButton (Editor.isValid model.workout)
             ]
         , Html.div
-            [ class "flex-fill text-right"
+            [ class "flex-fill cf"
             ]
-            [ Html.button
-                [ class "no-focus"
-                , style
-                    [ ( "height", "48px" )
-                    , ( "width", "48px" )
-                    , ( "background-color", "transparent" )
-                    , ( "font-size", "1.5em" )
-                    ]
-                , onClick (TransitionTo AddingSets)
+            [ Html.span
+                [ class "float-right"
                 ]
-                [ Html.text "+"
+                [ Form.button "Add sets" ToggleSidebar
                 ]
             ]
-        ]
-
-
-modal : Bool -> List (Html msg) -> Html msg
-modal visible =
-    Html.div
-        [ class "fixed transition-transform bg-white padding-1 shadow-2"
-        , style
-            [ ( "z-index", "2" )
-            , ( "top", "50px" )
-            , ( "width", "250px" )
-            , ( "left", "50vw" )
-            , ( "margin-left", "-125px" )
-            , ( "transform"
-              , if visible then
-                    "translateY(0)"
-                else
-                    "translateY(-400px"
-              )
-            ]
-        ]
-
-
-confirmWorkout { uiState, date } =
-    let
-        ( visible, content ) =
-            case uiState of
-                ConfirmingWorkout ->
-                    ( True
-                    , [ Html.input
-                            [ type_ "date"
-                            , class "font-size-1 padding-2"
-                            , value (dateToString date)
-                            , onInput UpdateDate
-                            ]
-                            []
-                      , Html.button
-                            [ class (successLinkBtn ++ " block full-width no-focus")
-                            , onClick SaveWorkout
-                            ]
-                            [ Html.text "save the workout" ]
-                      ]
-                    )
-
-                SavingWorkout ->
-                    ( True
-                    , [ Html.button
-                            [ class (disabledLinkBtn ++ " block full-width no-focus")
-                            ]
-                            [ Html.text "saving..." ]
-                      ]
-                    )
-
-                WorkoutWasSaved ->
-                    ( True
-                    , [ Html.h5 [] [ Html.text "Your workout was saved" ]
-                      , Html.button
-                            [ class (disabledLinkBtn ++ " block full-width no-focus")
-                            , onClick (TransitionTo EditingWorkout)
-                            ]
-                            [ Html.text "OK" ]
-                      ]
-                    )
-
-                _ ->
-                    ( False, [] )
-    in
-    Html.div
-        [ style [ ( "z-index", "2" ) ], class "relative" ]
-        [ Html.div
-            [ class "fixed cover bg-trans-1 transition-opacity"
-            , style
-                [ ( "z-index", "1" )
-                , ( "opacity"
-                  , if visible then
-                        "1"
-                    else
-                        "0"
-                  )
-                , ( "bottom"
-                  , if visible then
-                        "0"
-                    else
-                        "auto"
-                  )
-                ]
-            ]
-            []
-        , modal visible content
         ]
 
 
 loginForm : LoggedOutState -> Html LoggedOutAction
 loginForm { email, password, error } =
     Html.div
+        [ class "bg-white shadow-sm m-md p-md"
+        ]
+        [ Modal.title "Sign in"
+        , Modal.body
+            [ Form.label "Email"
+            , Form.email email UpdateEmail
+            , Form.label "Password"
+            , Form.password password UpdatePassword
+            ]
+        , Modal.footer
+            [ Form.button "Sign in" SendLoginRequest
+            ]
+        ]
+
+
+sidebar : LoggedInState -> Html LoggedInAction
+sidebar { exercises, workout, sidebarIsOpen } =
+    Html.div
         []
         [ Html.div
-            [ class "fixed cover bg-trans-1 transition-opacity"
-            , style
-                [ ( "z-index", "1" )
-                , ( "opacity", "0" )
-                , ( "bottom", "0" )
-                ]
-            ]
-            []
-        , modal True
-            [ Html.text (Maybe.withDefault "" error)
-            , Html.input
-                [ type_ "email"
-                , class "block full-width padding-1 margin-b-1 border-gray border-radius-1"
-                , value email
-                , onInput UpdateEmail
-                ]
-                []
-            , Html.input
-                [ type_ "password"
-                , class "block full-width padding-1 margin-b-1 border-gray border-radius-1"
-                , value password
-                , onInput UpdatePassword
-                ]
-                []
-            , Html.button
-                [ onClick SendLoginRequest
-                , class (successLinkBtn ++ " block full-width")
-                ]
-                [ Html.text "Log in" ]
-            ]
-        ]
-
-
-sidebar : List Exercise -> Workout -> Bool -> Html LoggedInAction
-sidebar exercises workout isOpen =
-    Html.div
-        [ class "relative"
-        , style [ ( "z-index", "3" ) ]
-        ]
-        [ Html.div
-            [ class "fixed bg-trans-1 transition-opacity"
-            , onClick (TransitionTo EditingWorkout)
-            , style
-                [ ( "top", "0" )
-                , ( "left", "0" )
-                , ( "right", "0" )
-                , ( "bottom"
-                  , if isOpen then
-                        "0"
-                    else
-                        ""
-                  )
-                , ( "opacity"
-                  , if isOpen then
-                        "1"
-                    else
-                        "0"
-                  )
-                ]
+            [ style
+                (if sidebarIsOpen then
+                    [ ( "opacity", "0.24" )
+                    ]
+                 else
+                    [ ( "pointer-events", "none" )
+                    , ( "opacity", "0" )
+                    ]
+                )
+            , class "fixed cover transition-opacity bg-black"
+            , onClick ToggleSidebar
             ]
             []
         , Html.div
-            [ class "bg-white fixed transition-transform shadow-1 overflow-scroll"
+            [ class "bg-white fixed transition-transform shadow-sm overflow-scroll"
             , style
                 [ ( "top", "0" )
                 , ( "bottom", "0" )
                 , ( "right", "-210px" )
                 , ( "width", "200px" )
                 , ( "transform"
-                  , if isOpen then
+                  , if sidebarIsOpen then
                         "translateX(-210px)"
                     else
                         ""
                   )
                 ]
             ]
-            [ exerciseList exercises
+            [ Html.h2
+                [ class "color-dark fx-lg p-md"
+                ]
+                [ Html.text "Exercises"
+                ]
+            , Html.map WorkoutMsg (Editor.exerciseList exercises)
+            , Form.blockButton "Create exercise" (OpenModal (CreateExercise { name = "", type_ = JustReps }))
             ]
         ]
-
-
-btnClass : String
-btnClass =
-    String.join " "
-        [ "padding-1"
-        , "border-radius-1"
-        , "bold"
-        , "uppercase"
-        , "letter-spacing-2"
-        , "bg-white"
-        ]
-
-
-successLinkBtn =
-    btnClass ++ " color-success"
-
-
-disabledLinkBtn =
-    btnClass ++ " color-gray-1 cursor-disabled"
 
 
 saveButton : Bool -> Html LoggedInAction
 saveButton active =
-    let
-        attrs =
-            if active then
-                [ class (successLinkBtn ++ " no-focus")
-                , onClick (TransitionTo ConfirmingWorkout)
-                ]
-            else
-                [ class (disabledLinkBtn ++ " no-focus")
-                , disabled True
-                ]
-    in
-    Html.button
-        attrs
-        [ Html.text "Save" ]
-
-
-exerciseList : List Exercise -> Html LoggedInAction
-exerciseList exercises =
-    Html.div
-        [ class "margin-b-2"
-        ]
-        (List.map
-            addExerciseButton
-            exercises
-        )
-
-
-primaryButton : String -> msg -> Html msg
-primaryButton text handler =
-    Html.button
-        [ onClick handler
-        , class "button"
-        ]
-        [ Html.text text ]
-
-
-addExerciseButton : Exercise -> Html LoggedInAction
-addExerciseButton ({ name } as ex) =
-    Html.button
-        [ class "button block full-width text-left"
-        , onClick (AddSet ex)
-        ]
-        [ Html.text name
-        ]
-
-
-setList : List Set -> Maybe SetAnimation -> Html LoggedInAction
-setList sets animation =
-    Html.div
-        [ style
-            [ ( "margin-top", "62px" )
-            , ( "z-index", "1" )
-            ]
-        ]
-        (List.indexedMap (setItem animation) sets)
-
-
-setItem : Maybe SetAnimation -> Int -> Set -> Html LoggedInAction
-setItem animation index set =
-    let
-        inputs =
-            case set of
-                JustReps ( { name }, { reps_input } ) ->
-                    [ numberInput reps_input (UpdateReps index)
-                    ]
-
-                Weighted ( { name }, { reps_input, weight_input } ) ->
-                    [ numberInput reps_input (UpdateReps index)
-                    , numberInput weight_input (UpdateWeight index)
-                    ]
-
-        classes =
-            case animation of
-                Just (AddingSet i) ->
-                    if i == index then
-                        "add-set"
-                    else
-                        ""
-
-                Just (CloningSet i) ->
-                    if i < index then
-                        "copy-set"
-                    else
-                        ""
-
-                Just (RemovingSet i) ->
-                    if i == index then
-                        "remove-set"
-                    else if i < index then
-                        "copy-set a-reverse"
-                    else
-                        ""
-
-                _ ->
-                    ""
-    in
-    Html.div
-        [ class classes
-        , Html.Events.onDoubleClick (CloneSet index)
-        ]
-        [ Html.div
-            [ class "bg-white margin-1 shadow-1"
-            , style
-                [ ( "z-index", "1" )
-                , ( "padding-bottom", "16px" )
-                ]
-            ]
-            [ Html.h5
-                [ class "uppercase font-size-2 letter-spacing-2 color-gray-2"
-                , style
-                    [ ( "line-height", "24px" )
-                    , ( "margin-left", "6px" )
-                    ]
-                ]
-                [ Html.text (toString (index + 1) ++ ". " ++ .name (Workout.exercise set)) ]
-            , Html.div
-                [ class "flex" ]
-                [ Html.div
-                    [ class "flex-fill padding-h-2"
-                    ]
-                    inputs
-                , Html.div
-                    [ class "flex-fit"
-                    , style
-                        [ ( "padding", "0 8px" )
-                        ]
-                    ]
-                    [ Html.button
-                        [ style
-                            [ ( "height", "48px" )
-                            , ( "width", "48px" )
-                            , ( "background-color", "transparent" )
-                            ]
-                        , class "no-focus"
-                        , onClick (CloneSet index)
-                        ]
-                        [ Html.span [ class "icon-copy" ] []
-                        ]
-                    , Html.button
-                        [ style
-                            [ ( "height", "48px" )
-                            , ( "width", "48px" )
-                            , ( "background-color", "transparent" )
-                            ]
-                        , class "no-focus"
-                        , onClick (RemoveSet index)
-                        ]
-                        [ Html.span [ class "icon-remove" ] []
-                        ]
-                    ]
-                ]
-            ]
-        ]
-
-
-numberInput : String -> (String -> msg) -> Html msg
-numberInput val handler =
-    Html.input
-        [ type_ "number"
-        , class "number-input"
-        , pattern "[0-9]*"
-        , Html.Attributes.min "0"
-        , Html.Attributes.placeholder "#"
-        , value val
-        , onInput handler
-        ]
-        []
+    if active then
+        Form.button "done" (OpenModal WorkoutDone)
+    else
+        Form.disabledButton "done"

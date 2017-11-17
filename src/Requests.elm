@@ -1,7 +1,13 @@
-module Requests exposing (..)
+module Requests
+    exposing
+        ( createExercise
+        , createWorkout
+        , getExercises
+        , login
+        , refreshToken
+        )
 
-import Data.Exercise exposing (Exercise, exerciseDecoder)
-import Data.Workout exposing (CompletedWorkout, Workout, decodeWorkout, encodeWorkout)
+import Data.Exercise as Exercise exposing (Exercise)
 import Date exposing (Date)
 import Http
 import Json.Decode as Decode
@@ -9,12 +15,7 @@ import Json.Encode as Encode
 
 
 endpoint =
-    "http://api.mygains.se"
-
-
-
--- endpoint =
---     "http://localhost:3000"
+    "http://localhost:3000"
 
 
 login : String -> String -> Http.Request String
@@ -29,14 +30,14 @@ login username password =
     post "/login" (Decode.field "token" Decode.string) encodedValue ""
 
 
-getWorkouts : String -> Http.Request (List CompletedWorkout)
-getWorkouts =
-    get "/workouts" (Decode.list decodeWorkout)
-
-
-getExercises : String -> Http.Request (List Exercise)
+getExercises : String -> Http.Request (List (Exercise {}))
 getExercises =
-    get "/exercises" (Decode.list exerciseDecoder)
+    get "/exercises" (Decode.list Exercise.decoder)
+
+
+createExercise : String -> Encode.Value -> Http.Request (Exercise {})
+createExercise token exercise =
+    post "/exercises" Exercise.decoder exercise token
 
 
 refreshToken : String -> Http.Request String

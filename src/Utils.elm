@@ -2,9 +2,24 @@ module Utils exposing (..)
 
 import Array exposing (Array)
 import Date exposing (Date, day, month, year)
-import Html
-import Html.Events
+import Html exposing (Attribute)
+import Html.Attributes
+import Html.Events as Events
 import Json.Decode as Decode
+import Process
+import Task
+import Time exposing (Time)
+
+
+-- delay : Time -> msg -> Cmd msg
+-- delay ms tag =
+--     Process.sleep ms
+--         |> Task.perform (always tag)
+
+
+apply : a -> (a -> b) -> b
+apply x f =
+    f x
 
 
 removeFromArray : Int -> Array a -> Array a
@@ -17,6 +32,13 @@ removeFromArray i a =
             Array.slice (i + 1) (Array.length a) a
     in
     Array.append a1 a2
+
+
+copyInArray : Int -> Array a -> Array a
+copyInArray index array =
+    Array.get index array
+        |> Maybe.map (insertInArray index array)
+        |> Maybe.withDefault array
 
 
 insertInArray : Int -> Array a -> a -> Array a
@@ -53,6 +75,20 @@ traverseArray f =
                     Maybe.map (Array.push x) acc
     in
     Array.foldl step (Just Array.empty)
+
+
+traverseList : (a -> Maybe b) -> List a -> Maybe (List b)
+traverseList f =
+    let
+        step e acc =
+            case f e of
+                Nothing ->
+                    Nothing
+
+                Just x ->
+                    Maybe.map ((::) x) acc
+    in
+    List.foldl step (Just [])
 
 
 dateToString : Date -> String
@@ -108,9 +144,10 @@ isJust =
     Maybe.map (always True) >> Maybe.withDefault False
 
 
-onKeyDown : (Int -> a) -> Html.Attribute a
-onKeyDown tagger =
-    Html.Events.on "keydown" (Decode.map tagger Html.Events.keyCode)
+
+-- onKeyDown : (Int -> a) -> Html.Attribute a
+-- onKeyDown tagger =
+--     Events.on "keydown" (Decode.map tagger Events.keyCode)
 
 
 groupByTransitive : (a -> a -> Bool) -> List a -> List (List a)
@@ -132,3 +169,29 @@ groupByTransitive cmp xss =
 
                 [] ->
                     []
+
+
+stringToInt : String -> Maybe Int
+stringToInt =
+    String.toInt >> Result.toMaybe
+
+
+stringToFloat : String -> Maybe Float
+stringToFloat =
+    String.toFloat >> Result.toMaybe
+
+
+onTransitionEnd : msg -> Attribute msg
+onTransitionEnd tag =
+    let
+        options =
+            { preventDefault = False
+            , stopPropagation = True
+            }
+    in
+    Events.onWithOptions "transitionend" options (Decode.succeed tag)
+
+
+find : (a -> Bool) -> List a -> Maybe a
+find p xs =
+    List.head (List.filter p xs)

@@ -1,59 +1,72 @@
-module Data.Exercise exposing (..)
-
-import Json.Decode as Decode
+module Data.Exercise
     exposing
-        ( Decoder
-        , andThen
-        , fail
-        , field
-        , int
-        , map3
-        , string
-        , succeed
+        ( Exercise
+        , ExerciseType(..)
+        , decoder
+        , encode
+        , find
         )
+
+import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode
+import Utils
 
 
 type ExerciseType
-    = Reps
-    | RepsAndWeight
+    = JustReps
+    | Weighted
 
 
-type alias Exercise =
-    { id : Int
-    , name : String
-    , type_ : ExerciseType
+type alias Exercise a =
+    { a | id : Int, name : String, type_ : ExerciseType }
+
+
+find : List (Exercise a) -> Int -> Maybe (Exercise a)
+find exercises id =
+    Utils.find (.id >> (==) id) exercises
+
+
+decoder : Decoder (Exercise {})
+decoder =
+    Decode.map3 makeExercise
+        (Decode.field "id" Decode.int)
+        (Decode.field "name" Decode.string)
+        (Decode.field "type" Decode.string |> Decode.andThen decodeType)
+
+
+decodeType : String -> Decoder ExerciseType
+decodeType str =
+    case str of
+        "REPS" ->
+            Decode.succeed JustReps
+
+        "REPS*WEIGHT" ->
+            Decode.succeed Weighted
+
+        _ ->
+            Decode.fail ("Unknown type: " ++ str)
+
+
+makeExercise : Int -> String -> ExerciseType -> Exercise {}
+makeExercise id name type_ =
+    { id = id
+    , name = name
+    , type_ = type_
     }
 
 
-justReps : Int -> String -> Exercise
-justReps id name =
-    Exercise id name Reps
+encode : String -> ExerciseType -> Encode.Value
+encode name type_ =
+    Encode.object
+        [ ( "name", Encode.string name )
+        , ( "type"
+          , Encode.string
+                (case type_ of
+                    JustReps ->
+                        "REPS"
 
-
-weighted : Int -> String -> Exercise
-weighted id name =
-    Exercise id name RepsAndWeight
-
-
-exerciseDecoder : Decoder Exercise
-exerciseDecoder =
-    let
-        typeDecoder =
-            string
-                |> andThen
-                    (\typ ->
-                        case typ of
-                            "REPS" ->
-                                succeed Reps
-
-                            "REPS*WEIGHT" ->
-                                succeed RepsAndWeight
-
-                            _ ->
-                                fail ("Unknown type " ++ typ)
-                    )
-    in
-    map3 Exercise
-        (field "id" int)
-        (field "name" string)
-        (field "type" typeDecoder)
+                    Weighted ->
+                        "REPS*WEIGHT"
+                )
+          )
+        ]
