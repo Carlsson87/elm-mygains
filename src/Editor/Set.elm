@@ -1,4 +1,14 @@
-module Editor.Set exposing (..)
+module Editor.Set
+    exposing
+        ( Set(..)
+        , decode
+        , emptySet
+        , exercise
+        , isValid
+        , toString
+        , updateReps
+        , updateWeight
+        )
 
 import Data.Exercise as Exercise exposing (Exercise)
 import Json.Decode as Decode exposing (Decoder)
@@ -14,23 +24,19 @@ type alias Weight a =
     { a | weight : Maybe Float, weight_input : String }
 
 
-type SetType
-    = JustReps (Reps {})
-    | Weighted (Reps (Weight {}))
+type Set
+    = JustReps Exercise (Reps {})
+    | Weighted Exercise (Reps (Weight {}))
 
 
-type alias Set =
-    Exercise { set : SetType }
+exercise : Set -> Exercise
+exercise set =
+    case set of
+        JustReps ex _ ->
+            ex
 
-
-replaceSet : SetType -> Set -> Set
-replaceSet setType set =
-    case set.set of
-        JustReps _ ->
-            { set | set = setType }
-
-        Weighted _ ->
-            { set | set = setType }
+        Weighted ex _ ->
+            ex
 
 
 updateReps : String -> Reps a -> Reps a
@@ -49,7 +55,7 @@ updateWeight str rec =
     }
 
 
-emptySet : Exercise {} -> Set
+emptySet : Exercise -> Set
 emptySet exercise =
     case exercise.type_ of
         Exercise.JustReps ->
@@ -59,54 +65,44 @@ emptySet exercise =
             makeWeighted exercise "" ""
 
 
-makeJustReps : Exercise {} -> String -> Set
-makeJustReps { id, name, type_ } reps =
-    { id = id
-    , name = name
-    , type_ = type_
-    , set =
-        JustReps
-            { reps = stringToInt reps
-            , reps_input = reps
-            }
-    }
+makeJustReps : Exercise -> String -> Set
+makeJustReps exercise reps =
+    JustReps exercise
+        { reps = stringToInt reps
+        , reps_input = reps
+        }
 
 
-makeWeighted : Exercise {} -> String -> String -> Set
-makeWeighted { id, name, type_ } reps weight =
-    { id = id
-    , name = name
-    , type_ = type_
-    , set =
-        Weighted
-            { reps = stringToInt reps
-            , reps_input = reps
-            , weight = stringToFloat weight
-            , weight_input = weight
-            }
-    }
+makeWeighted : Exercise -> String -> String -> Set
+makeWeighted exercise reps weight =
+    Weighted exercise
+        { reps = stringToInt reps
+        , reps_input = reps
+        , weight = stringToFloat weight
+        , weight_input = weight
+        }
 
 
-isValid : SetType -> Bool
+isValid : Set -> Bool
 isValid set =
     case set of
-        JustReps { reps } ->
+        JustReps _ { reps } ->
             Utils.isJust reps
 
-        Weighted { reps, weight } ->
+        Weighted _ { reps, weight } ->
             Utils.isJust reps && Utils.isJust weight
 
 
 toString : Set -> Encode.Value
-toString { id, set } =
+toString set =
     case set of
-        JustReps { reps_input } ->
+        JustReps { id } { reps_input } ->
             Encode.object
                 [ ( "exercise_id", Encode.int id )
                 , ( "reps", Encode.string reps_input )
                 ]
 
-        Weighted { reps_input, weight_input } ->
+        Weighted { id } { reps_input, weight_input } ->
             Encode.object
                 [ ( "exercise_id", Encode.int id )
                 , ( "reps", Encode.string reps_input )
@@ -114,7 +110,7 @@ toString { id, set } =
                 ]
 
 
-decode : List (Exercise {}) -> Decoder Set
+decode : List Exercise -> Decoder Set
 decode exercises =
     Decode.field "exercise_id" Decode.int
         |> Decode.andThen
@@ -124,7 +120,7 @@ decode exercises =
             )
 
 
-decodeSetType : Exercise {} -> Decoder Set
+decodeSetType : Exercise -> Decoder Set
 decodeSetType exercise =
     case exercise.type_ of
         Exercise.JustReps ->

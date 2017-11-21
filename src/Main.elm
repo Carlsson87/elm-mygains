@@ -57,7 +57,7 @@ type Model
 
 type alias LoggedInState =
     { token : String
-    , exercises : List (Exercise {})
+    , exercises : List Exercise
     , workout : Workout
     , date : Date
     , sidebarIsOpen : Bool
@@ -75,7 +75,7 @@ type ModalContent
     | CreateExercise { name : String, type_ : Exercise.ExerciseType }
 
 
-makeLoggedInState : String -> Workout -> List (Exercise {}) -> Date -> LoggedInState
+makeLoggedInState : String -> Workout -> List Exercise -> Date -> LoggedInState
 makeLoggedInState token editor exercises date =
     LoggedInState token exercises editor date False Nothing
 
@@ -108,18 +108,18 @@ init flags =
         date =
             Date.now
 
-        exercises : String -> Task.Task Http.Error (List (Exercise {}))
+        exercises : String -> Task.Task Http.Error (List Exercise)
         exercises =
             getExercises >> Http.toTask
 
-        workout : List (Exercise {}) -> Workout
+        workout : List Exercise -> Workout
         workout exs =
             flags
                 |> Decode.decodeValue (Decode.field "workout" Decode.string)
                 |> Result.andThen (Editor.fromString exs)
                 |> Result.withDefault Editor.empty
 
-        makeLogin : List (Exercise {}) -> Date -> String -> LoggedInState
+        makeLogin : List Exercise -> Date -> String -> LoggedInState
         makeLogin exs date token =
             makeLoggedInState token (workout exs) exs date
 
@@ -152,7 +152,7 @@ type LoggedInAction
     | UpdateDate Date
     | SaveWorkoutFailed
     | SaveExercise String ExerciseType
-    | ExerciseSaved (Result Http.Error (Exercise {}))
+    | ExerciseSaved (Result Http.Error Exercise)
 
 
 type LoggedOutAction
@@ -456,11 +456,11 @@ sidebar { exercises, workout, sidebarIsOpen } =
             , style
                 [ ( "top", "0" )
                 , ( "bottom", "0" )
-                , ( "right", "-210px" )
-                , ( "width", "200px" )
+                , ( "right", "-270px" )
+                , ( "width", "270px" )
                 , ( "transform"
                   , if sidebarIsOpen then
-                        "translateX(-210px)"
+                        "translateX(-270px)"
                     else
                         ""
                   )

@@ -22,45 +22,26 @@ apply x f =
     f x
 
 
-removeFromArray : Int -> Array a -> Array a
-removeFromArray i a =
+updateAtIndex : Int -> (a -> a) -> List a -> List a
+updateAtIndex index f xs =
     let
-        a1 =
-            Array.slice 0 i a
-
-        a2 =
-            Array.slice (i + 1) (Array.length a) a
+        update i x =
+            if i == index then
+                f x
+            else
+                x
     in
-    Array.append a1 a2
+    List.indexedMap update xs
 
 
-copyInArray : Int -> Array a -> Array a
-copyInArray index array =
-    Array.get index array
-        |> Maybe.map (insertInArray index array)
-        |> Maybe.withDefault array
+copyAtIndex : Int -> List a -> List a
+copyAtIndex index xs =
+    List.take (index + 1) xs ++ List.drop index xs
 
 
-insertInArray : Int -> Array a -> a -> Array a
-insertInArray i a x =
-    let
-        a1 =
-            Array.slice 0 i a
-
-        a2 =
-            Array.slice i (Array.length a) a
-    in
-    Array.append (Array.push x a1) a2
-
-
-updateInArray : Int -> (a -> a) -> Array a -> Array a
-updateInArray index f arr =
-    case Array.get index arr of
-        Just item ->
-            Array.set index (f item) arr
-
-        Nothing ->
-            arr
+removeAtIndex : Int -> List a -> List a
+removeAtIndex index xs =
+    List.take index xs ++ List.drop (index + 1) xs
 
 
 traverseArray : (a -> Maybe b) -> Array.Array a -> Maybe (Array.Array b)
@@ -142,33 +123,6 @@ dateToString date =
 isJust : Maybe a -> Bool
 isJust =
     Maybe.map (always True) >> Maybe.withDefault False
-
-
-
--- onKeyDown : (Int -> a) -> Html.Attribute a
--- onKeyDown tagger =
---     Events.on "keydown" (Decode.map tagger Events.keyCode)
-
-
-groupByTransitive : (a -> a -> Bool) -> List a -> List (List a)
-groupByTransitive cmp xss =
-    case xss of
-        [] ->
-            []
-
-        [ x ] ->
-            [ [ x ] ]
-
-        x :: ((xx :: _) as xs) ->
-            case groupByTransitive cmp xs of
-                (y :: ys) as r ->
-                    if cmp x xx then
-                        (x :: y) :: ys
-                    else
-                        [ x ] :: r
-
-                [] ->
-                    []
 
 
 stringToInt : String -> Maybe Int

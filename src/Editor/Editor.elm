@@ -35,7 +35,7 @@ import View.Form as Form
 
 
 type Msg
-    = AddSet (Exercise {})
+    = AddSet Exercise
     | SetWasAdded Int
     | CloneSet Int
     | SetWasCloned Int
@@ -81,35 +81,17 @@ update msg (Workout ({ sets, nextId, transition } as state)) =
 
         UpdateSet index set ->
             ( Workout
-                { state
-                    | sets =
-                        List.indexedMap
-                            (\i ( id, s ) ->
-                                if i == index then
-                                    ( id, set )
-                                else
-                                    ( id, s )
-                            )
-                            sets
-                }
+                { state | sets = Utils.updateAtIndex index (Tuple.mapSecond (always set)) sets }
             , Cmd.none
             )
 
         CloneSet index ->
-            let
-                copyIndex i set =
-                    if i == index then
-                        [ set, Tuple.mapFirst (always nextId) set ]
-                    else
-                        [ set ]
-            in
             ( Workout
                 { nextId = nextId + 1
                 , transition = Just (CloningSet (index + 1))
                 , sets =
-                    sets
-                        |> List.indexedMap copyIndex
-                        |> List.concat
+                    Utils.copyAtIndex index sets
+                        |> Utils.updateAtIndex (index + 1) (Tuple.mapFirst (always nextId))
                 }
             , Process.sleep 17 |> Task.perform (always (SetWasCloned index))
             )
@@ -125,10 +107,7 @@ update msg (Workout ({ sets, nextId, transition } as state)) =
         SetWasRemoved index ->
             ( Workout
                 { state
-                    | sets =
-                        List.append
-                            (List.take index sets)
-                            (List.drop (index + 1) sets)
+                    | sets = Utils.removeAtIndex index sets
                     , transition = Nothing
                 }
             , Cmd.none
@@ -167,7 +146,7 @@ state (Workout state) =
 isValid : Workout -> Bool
 isValid (Workout { sets }) =
     not (List.isEmpty sets)
-        && List.all (Tuple.second >> .set >> Set.isValid) sets
+        && List.all (Tuple.second >> Set.isValid) sets
 
 
 toString : Workout -> String
@@ -179,7 +158,7 @@ toString workout =
         |> Encode.encode 0
 
 
-fromString : List (Exercise {}) -> String -> Result String Workout
+fromString : List Exercise -> String -> Result String Workout
 fromString exercises str =
     Decode.decodeString (Decode.map fromSets (Decode.list (Set.decode exercises))) str
 
@@ -199,7 +178,7 @@ encodeWorkout date workout =
 
 
 setEncoder : Set -> Maybe Encode.Value
-setEncoder { id, set } =
+setEncoder set =
     let
         encoder id reps weight =
             Encode.object
@@ -209,10 +188,10 @@ setEncoder { id, set } =
                 ]
     in
     case set of
-        Set.JustReps { reps } ->
+        Set.JustReps { id } { reps } ->
             Maybe.map2 (encoder id) reps (Just 0)
 
-        Set.Weighted { reps, weight } ->
+        Set.Weighted { id } { reps, weight } ->
             Maybe.map2 (encoder id) reps weight
 
 
@@ -220,7 +199,7 @@ setList : Workout -> Html Msg
 setList (Workout { sets, transition }) =
     let
         renderSet : Int -> ( Int, Set ) -> ( String, Html Msg )
-        renderSet index ( id, { name, set } as workSet ) =
+        renderSet index ( id, set ) =
             let
                 noop =
                     Events.on "noop" (Decode.fail "")
@@ -298,33 +277,30 @@ setList (Workout { sets, transition }) =
                         , ( "margin-left", "6px" )
                         ]
                     ]
-                    [ Html.text (Basics.toString (index + 1) ++ ". " ++ name) ]
+                    [ Html.text (Basics.toString (index + 1) ++ ". " ++ (set |> Set.exercise |> .name)) ]
                 , Html.div
                     [ Attr.class "flex" ]
                     [ Html.div
                         [ Attr.class "flex-fill pl-sm pr-sm"
                         ]
                         (case set of
-                            Set.JustReps ({ reps_input } as set) ->
+                            Set.JustReps ex ({ reps_input } as set) ->
                                 [ Form.numberInput reps_input
                                     (flip Set.updateReps set
-                                        >> Set.JustReps
-                                        >> flip Set.replaceSet workSet
+                                        >> Set.JustReps ex
                                         >> UpdateSet index
                                     )
                                 ]
 
-                            Set.Weighted ({ reps_input, weight_input } as set) ->
+                            Set.Weighted ex ({ reps_input, weight_input } as set) ->
                                 [ Form.numberInput reps_input
                                     (flip Set.updateReps set
-                                        >> Set.Weighted
-                                        >> flip Set.replaceSet workSet
+                                        >> Set.Weighted ex
                                         >> UpdateSet index
                                     )
                                 , Form.numberInput weight_input
                                     (flip Set.updateWeight set
-                                        >> Set.Weighted
-                                        >> flip Set.replaceSet workSet
+                                        >> Set.Weighted ex
                                         >> UpdateSet index
                                     )
                                 ]
@@ -351,18 +327,41 @@ setList (Workout { sets, transition }) =
         (List.indexedMap renderSet sets)
 
 
-exerciseList : List (Exercise {}) -> Html Msg
+exerciseList : List Exercise -> Html Msg
 exerciseList exercises =
     Html.div
         []
         (List.map exerciseListItem exercises)
 
 
-exerciseListItem : Exercise {} -> Html Msg
+exerciseListItem : Exercise -> Html Msg
 exerciseListItem exercise =
-    Html.button
-        [ Attr.class "full-width text-left lh-xl pl-md fz-sm bold ls-sm bg-white active-bg-clouds no-outline square mb-sm"
-        , Events.onClick (AddSet exercise)
+    Html.div
+        [ Attr.class "p-md bg-white active-bg-clouds flex"
         ]
-        [ Html.text exercise.name
+        [ Html.div
+            [ Attr.class "flex-fill fz-md bold ls-sm lh-xl"
+            , Events.onClick (AddSet exercise)
+            ]
+            [ Html.text exercise.name
+            ]
+        , Html.div
+            [ Attr.class "flex-fit ls-sm lh-xl color-silver text-right relative"
+            , Attr.style [ ( "min-width", "48px" ) ]
+            ]
+            [ Html.span
+                [ Attr.class "bold fz-md"
+                ]
+                [ Html.text "12"
+                ]
+            , Html.span
+                [ Attr.class "absolute block fz-sm ws-nw"
+                , Attr.style
+                    [ ( "top", "1rem" )
+                    , ( "right", "0" )
+                    ]
+                ]
+                [ Html.text "avg reps / set"
+                ]
+            ]
         ]

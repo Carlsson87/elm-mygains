@@ -56,8 +56,10 @@ input[type="date"] {
 .ls-sm { letter-spacing: 1px }
 .ls-md { letter-spacing: 2px }
 .text-left { text-align: left }
+.text-right { text-align: right }
 .text-center { text-align: center }
 .uc { text-transform: uppercase }
+.ws-nw { white-space: nowrap }
 
 /* Margin & Padding */
 .m-xs { margin: 0.25rem }

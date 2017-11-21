@@ -17,18 +17,23 @@ type ExerciseType
     | Weighted
 
 
-type alias Exercise a =
-    { a | id : Int, name : String, type_ : ExerciseType }
+type alias Exercise =
+    { id : Int, name : String, type_ : ExerciseType }
 
 
-find : List (Exercise a) -> Int -> Maybe (Exercise a)
+exercise : Int -> String -> ExerciseType -> Exercise
+exercise id name type_ =
+    { id = id, name = name, type_ = type_ }
+
+
+find : List Exercise -> Int -> Maybe Exercise
 find exercises id =
     Utils.find (.id >> (==) id) exercises
 
 
-decoder : Decoder (Exercise {})
+decoder : Decoder Exercise
 decoder =
-    Decode.map3 makeExercise
+    Decode.map3 Exercise
         (Decode.field "id" Decode.int)
         (Decode.field "name" Decode.string)
         (Decode.field "type" Decode.string |> Decode.andThen decodeType)
@@ -36,23 +41,12 @@ decoder =
 
 decodeType : String -> Decoder ExerciseType
 decodeType str =
-    case str of
-        "REPS" ->
-            Decode.succeed JustReps
-
-        "REPS*WEIGHT" ->
-            Decode.succeed Weighted
-
-        _ ->
-            Decode.fail ("Unknown type: " ++ str)
-
-
-makeExercise : Int -> String -> ExerciseType -> Exercise {}
-makeExercise id name type_ =
-    { id = id
-    , name = name
-    , type_ = type_
-    }
+    if str == "REPS" then
+        Decode.succeed JustReps
+    else if str == "REPS*WEIGHT" then
+        Decode.succeed Weighted
+    else
+        Decode.fail ("Unknown type: " ++ str)
 
 
 encode : String -> ExerciseType -> Encode.Value

@@ -30,12 +30,12 @@ login username password =
     post "/login" (Decode.field "token" Decode.string) encodedValue ""
 
 
-getExercises : String -> Http.Request (List (Exercise {}))
+getExercises : String -> Http.Request (List Exercise)
 getExercises =
     get "/exercises" (Decode.list Exercise.decoder)
 
 
-createExercise : String -> Encode.Value -> Http.Request (Exercise {})
+createExercise : String -> Encode.Value -> Http.Request Exercise
 createExercise token exercise =
     post "/exercises" Exercise.decoder exercise token
 
