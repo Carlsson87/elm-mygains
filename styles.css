@@ -39,8 +39,10 @@ input[type="date"] {
 .color-silver { color: #BDC3C7 }
 .color-blue { color: #3498DB }
 .color-dark { color: #2C3E50 }
+.color-white { color: white }
 
 .bg-white { background-color: white }
+.bg-clouds { background-color: #ECF0F1  }
 .bg-black { background-color: black }
 .bg-blue { background-color: #3498DB }
 .bg-color { background-color: currentColor }
@@ -60,6 +62,10 @@ input[type="date"] {
 .text-center { text-align: center }
 .uc { text-transform: uppercase }
 .ws-nw { white-space: nowrap }
+.ellipsis {
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
 
 /* Margin & Padding */
 .m-xs { margin: 0.25rem }
@@ -70,6 +76,7 @@ input[type="date"] {
 .mb-xl { margin-bottom: 2rem }
 .mr-md { margin-right: 1rem }
 .ml-sm { margin-left: 0.5rem }
+.mt-xl { margin-top: 2rem }
 
 .p-xs { padding: 0.25rem }
 .p-md { padding: 1rem }

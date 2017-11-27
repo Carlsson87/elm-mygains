@@ -1,4 +1,15 @@
-module View.Modal exposing (Modal, State(..), body, footer, title, updateState, view)
+module View.Modal
+    exposing
+        ( Modal(..)
+        , State(..)
+        , body
+        , content
+        , footer
+        , title
+        , updateContent
+        , updateState
+        , view
+        )
 
 import Html exposing (Html)
 import Html.Attributes exposing (class, style)
@@ -13,13 +24,23 @@ type State
     | IsClosed
 
 
-type alias Modal a =
-    { a | state : State }
+type Modal a
+    = Modal State a
 
 
 updateState : State -> Modal a -> Modal a
-updateState state modal =
-    { modal | state = state }
+updateState state (Modal _ a) =
+    Modal state a
+
+
+updateContent : a -> Modal a -> Modal a
+updateContent a (Modal state _) =
+    Modal state a
+
+
+content : Modal a -> a
+content (Modal _ a) =
+    a
 
 
 onTransitionEnd : msg -> Html.Attribute msg
@@ -56,8 +77,8 @@ footer children =
         (List.map wrap children)
 
 
-view : State -> (State -> msg) -> List (Html msg) -> Html msg
-view state tag content =
+view : Modal a -> (State -> msg) -> List (Html msg) -> Html msg
+view (Modal state _) tag content =
     let
         ( coverOpacity, modalY, event ) =
             case state of

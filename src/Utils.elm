@@ -44,20 +44,6 @@ removeAtIndex index xs =
     List.take index xs ++ List.drop (index + 1) xs
 
 
-traverseArray : (a -> Maybe b) -> Array.Array a -> Maybe (Array.Array b)
-traverseArray f =
-    let
-        step e acc =
-            case f e of
-                Nothing ->
-                    Nothing
-
-                Just x ->
-                    Maybe.map (Array.push x) acc
-    in
-    Array.foldl step (Just Array.empty)
-
-
 traverseList : (a -> Maybe b) -> List a -> Maybe (List b)
 traverseList f =
     let

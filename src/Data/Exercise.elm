@@ -1,65 +1,75 @@
 module Data.Exercise
     exposing
         ( Exercise
-        , ExerciseType(..)
+        , ExerciseRecord
         , decoder
         , encode
         , find
+        , id
+        , name
         )
 
+import Data.Kind as Kind exposing (Kind(..))
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Utils
 
 
-type ExerciseType
-    = JustReps
-    | Weighted
+type alias ExerciseRecord =
+    { id : Int, name : String }
 
 
 type alias Exercise =
-    { id : Int, name : String, type_ : ExerciseType }
+    Kind ExerciseRecord ExerciseRecord
 
 
-exercise : Int -> String -> ExerciseType -> Exercise
-exercise id name type_ =
-    { id = id, name = name, type_ = type_ }
+id : Exercise -> Int
+id =
+    Kind.fold .id .id
+
+
+name : Exercise -> String
+name =
+    Kind.fold .name .name
 
 
 find : List Exercise -> Int -> Maybe Exercise
-find exercises id =
-    Utils.find (.id >> (==) id) exercises
+find exercises id_ =
+    Utils.find (id >> (==) id_) exercises
 
 
 decoder : Decoder Exercise
 decoder =
-    Decode.map3 Exercise
+    let
+        make id name type_ =
+            case type_ of
+                "REPS" ->
+                    Decode.succeed (JustReps (ExerciseRecord id name))
+
+                "REPS*WEIGHT" ->
+                    Decode.succeed (Weighted (ExerciseRecord id name))
+
+                _ ->
+                    Decode.fail ("Unknown exercise type: " ++ type_)
+    in
+    Decode.map3 make
         (Decode.field "id" Decode.int)
         (Decode.field "name" Decode.string)
-        (Decode.field "type" Decode.string |> Decode.andThen decodeType)
+        (Decode.field "type" Decode.string)
+        |> Decode.andThen identity
 
 
-decodeType : String -> Decoder ExerciseType
-decodeType str =
-    if str == "REPS" then
-        Decode.succeed JustReps
-    else if str == "REPS*WEIGHT" then
-        Decode.succeed Weighted
-    else
-        Decode.fail ("Unknown type: " ++ str)
-
-
-encode : String -> ExerciseType -> Encode.Value
+encode : String -> Kind () () -> Encode.Value
 encode name type_ =
     Encode.object
         [ ( "name", Encode.string name )
         , ( "type"
           , Encode.string
                 (case type_ of
-                    JustReps ->
+                    JustReps _ ->
                         "REPS"
 
-                    Weighted ->
+                    Weighted _ ->
                         "REPS*WEIGHT"
                 )
           )

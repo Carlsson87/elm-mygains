@@ -6,6 +6,7 @@ module View.Form
         , disabledButton
         , email
         , iconButton
+        , info
         , input
         , label
         , numberInput
@@ -176,3 +177,12 @@ numberInput val handler =
         , Event.onInput handler
         ]
         []
+
+
+info : String -> Html msg
+info str =
+    Html.div
+        [ Attr.class "mb-md fz-sm color-white bg-blue p-md rounded"
+        ]
+        [ Html.text str
+        ]

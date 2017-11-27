@@ -3,6 +3,7 @@ module Requests
         ( createExercise
         , createWorkout
         , getExercises
+        , getWorkouts
         , login
         , refreshToken
         )
@@ -33,6 +34,11 @@ login username password =
 getExercises : String -> Http.Request (List Exercise)
 getExercises =
     get "/exercises" (Decode.list Exercise.decoder)
+
+
+getWorkouts : String -> Http.Request Decode.Value
+getWorkouts =
+    get "/workouts" Decode.value
 
 
 createExercise : String -> Encode.Value -> Http.Request Exercise

@@ -18,7 +18,10 @@ module Editor.Editor
 import Array exposing (Array)
 import Colors
 import Data.Exercise as Exercise exposing (Exercise)
+import Data.History as History exposing (History)
+import Data.Kind as Kind exposing (Kind(..))
 import Date exposing (Date)
+import Dict exposing (Dict)
 import Editor.Set as Set exposing (Set)
 import Html exposing (Html)
 import Html.Attributes as Attr
@@ -165,11 +168,11 @@ fromString exercises str =
 
 encodeWorkout : Date -> Workout -> Maybe Encode.Value
 encodeWorkout date workout =
-    Array.fromList (sets workout)
-        |> Array.map Tuple.second
-        |> Utils.traverseArray setEncoder
+    sets workout
+        |> List.map Tuple.second
+        |> Utils.traverseList setEncoder
         |> Maybe.map
-            (Encode.array
+            (Encode.list
                 >> (,) "sets"
                 >> List.singleton
                 >> (::) ( "date", Encode.string (Utils.dateToString date) )
@@ -180,19 +183,23 @@ encodeWorkout date workout =
 setEncoder : Set -> Maybe Encode.Value
 setEncoder set =
     let
-        encoder id reps weight =
+        encode id reps weight =
             Encode.object
                 [ ( "exercise_id", Encode.int id )
                 , ( "reps", Encode.int reps )
                 , ( "weight", Encode.float weight )
                 ]
-    in
-    case set of
-        Set.JustReps { id } { reps } ->
-            Maybe.map2 (encoder id) reps (Just 0)
 
-        Set.Weighted { id } { reps, weight } ->
-            Maybe.map2 (encoder id) reps weight
+        encodeJustReps ( ex, { reps } ) =
+            Maybe.map2 (encode (Exercise.id ex)) reps (Just 0)
+
+        encodeWeighted ( ex, { reps, weight } ) =
+            Maybe.map2 (encode (Exercise.id ex)) reps weight
+    in
+    Kind.fold
+        encodeJustReps
+        encodeWeighted
+        set
 
 
 setList : Workout -> Html Msg
@@ -271,45 +278,21 @@ setList (Workout { sets, transition }) =
                 , handler
                 ]
                 [ Html.h5
-                    [ Attr.class "uc fz-sm ls-sm color-silver"
-                    , Attr.style
-                        [ ( "line-height", "24px" )
-                        , ( "margin-left", "6px" )
-                        ]
+                    [ Attr.class "uc fz-sm ls-sm color-silver lh-md ml-sm"
                     ]
-                    [ Html.text (Basics.toString (index + 1) ++ ". " ++ (set |> Set.exercise |> .name)) ]
+                    [ Html.text (Basics.toString (index + 1) ++ ". " ++ (set |> Set.exercise |> Exercise.name)) ]
                 , Html.div
                     [ Attr.class "flex" ]
                     [ Html.div
                         [ Attr.class "flex-fill pl-sm pr-sm"
                         ]
-                        (case set of
-                            Set.JustReps ex ({ reps_input } as set) ->
-                                [ Form.numberInput reps_input
-                                    (flip Set.updateReps set
-                                        >> Set.JustReps ex
-                                        >> UpdateSet index
-                                    )
-                                ]
-
-                            Set.Weighted ex ({ reps_input, weight_input } as set) ->
-                                [ Form.numberInput reps_input
-                                    (flip Set.updateReps set
-                                        >> Set.Weighted ex
-                                        >> UpdateSet index
-                                    )
-                                , Form.numberInput weight_input
-                                    (flip Set.updateWeight set
-                                        >> Set.Weighted ex
-                                        >> UpdateSet index
-                                    )
-                                ]
+                        (Kind.fold
+                            (renderJustRepsInput index)
+                            (renderWeightedInput index)
+                            set
                         )
                     , Html.div
-                        [ Attr.class "flex-fit"
-                        , Attr.style
-                            [ ( "padding", "0 8px" )
-                            ]
+                        [ Attr.class "flex-fit pl-md pr-sm"
                         ]
                         [ Form.iconButton (Icon.clone Colors.silver 16) (CloneSet index)
                         , Form.iconButton (Icon.times Colors.silver 16) (RemoveSet index)
@@ -327,23 +310,66 @@ setList (Workout { sets, transition }) =
         (List.indexedMap renderSet sets)
 
 
-exerciseList : List Exercise -> Html Msg
-exerciseList exercises =
+renderJustRepsInput : Int -> ( Exercise, Set.Reps {} ) -> List (Html Msg)
+renderJustRepsInput index (( ex, { reps_input } ) as justReps) =
+    let
+        update =
+            Set.makeJustReps
+                >> (,) ex
+                >> Kind.JustReps
+                >> UpdateSet index
+    in
+    [ Form.numberInput reps_input update
+    ]
+
+
+renderWeightedInput : Int -> ( Exercise, Set.Reps (Set.Weight {}) ) -> List (Html Msg)
+renderWeightedInput index (( ex, { reps_input, weight_input } ) as justReps) =
+    let
+        updateReps =
+            flip Set.makeWeighted weight_input
+                >> (,) ex
+                >> Kind.Weighted
+                >> UpdateSet index
+
+        updateWeight =
+            Set.makeWeighted reps_input
+                >> (,) ex
+                >> Kind.Weighted
+                >> UpdateSet index
+    in
+    [ Form.numberInput reps_input updateReps
+    , Form.numberInput weight_input updateWeight
+    ]
+
+
+exerciseList : List Exercise -> Dict Int History -> Html Msg
+exerciseList exercises history =
     Html.div
         []
-        (List.map exerciseListItem exercises)
+        (List.map (exerciseListItem history) exercises)
 
 
-exerciseListItem : Exercise -> Html Msg
-exerciseListItem exercise =
+exerciseListItem : Dict Int History -> Exercise -> Html Msg
+exerciseListItem history exercise =
+    let
+        ( desc, max ) =
+            Dict.get (Exercise.id exercise) history
+                |> Maybe.map
+                    (Kind.fold
+                        (.maxRepsSet >> Basics.toString >> (,) "max reps / set")
+                        (.maxWeightRep >> Basics.toString >> (,) "max weight / rep")
+                    )
+                |> Maybe.withDefault ( "", "" )
+    in
     Html.div
-        [ Attr.class "p-md bg-white active-bg-clouds flex"
+        [ Attr.class "p-md bg-white flex"
         ]
         [ Html.div
-            [ Attr.class "flex-fill fz-md bold ls-sm lh-xl"
+            [ Attr.class "flex-fill fz-md bold ls-sm lh-xl ws-nw ellipsis"
             , Events.onClick (AddSet exercise)
             ]
-            [ Html.text exercise.name
+            [ Html.text (Exercise.name exercise)
             ]
         , Html.div
             [ Attr.class "flex-fit ls-sm lh-xl color-silver text-right relative"
@@ -352,7 +378,7 @@ exerciseListItem exercise =
             [ Html.span
                 [ Attr.class "bold fz-md"
                 ]
-                [ Html.text "12"
+                [ Html.text max
                 ]
             , Html.span
                 [ Attr.class "absolute block fz-sm ws-nw"
@@ -361,7 +387,7 @@ exerciseListItem exercise =
                     , ( "right", "0" )
                     ]
                 ]
-                [ Html.text "avg reps / set"
+                [ Html.text desc
                 ]
             ]
         ]

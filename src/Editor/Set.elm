@@ -1,18 +1,25 @@
 module Editor.Set
     exposing
-        ( Set(..)
+        ( Reps
+        , Set
+        , Weight
         , decode
         , emptySet
         , exercise
         , isValid
+        , makeJustReps
+        , makeWeighted
         , toString
+        , updateJustReps
         , updateReps
         , updateWeight
         )
 
-import Data.Exercise as Exercise exposing (Exercise)
+import Data.Exercise as Exercise exposing (Exercise, ExerciseRecord)
+import Data.Kind as Kind exposing (Kind(..))
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
+import Tuple
 import Utils exposing (stringToFloat, stringToInt)
 
 
@@ -24,19 +31,42 @@ type alias Weight a =
     { a | weight : Maybe Float, weight_input : String }
 
 
-type Set
-    = JustReps Exercise (Reps {})
-    | Weighted Exercise (Reps (Weight {}))
+type alias Set =
+    Kind ( Exercise, Reps {} ) ( Exercise, Reps (Weight {}) )
+
+
+updateJustReps : (Reps {} -> Reps {}) -> Kind ( Exercise, Reps {} ) a -> Kind ( Exercise, Reps {} ) a
+updateJustReps f =
+    Kind.mapJustReps (Tuple.mapSecond f)
+
+
+emptySet : Exercise -> Set
+emptySet exercise =
+    Kind.replace
+        ( exercise, makeJustReps "" )
+        ( exercise, makeWeighted "" "" )
+        exercise
+
+
+makeJustReps : String -> Reps {}
+makeJustReps reps =
+    { reps = stringToInt reps
+    , reps_input = reps
+    }
+
+
+makeWeighted : String -> String -> Reps (Weight {})
+makeWeighted reps weight =
+    { reps = stringToInt reps
+    , reps_input = reps
+    , weight = stringToFloat weight
+    , weight_input = weight
+    }
 
 
 exercise : Set -> Exercise
-exercise set =
-    case set of
-        JustReps ex _ ->
-            ex
-
-        Weighted ex _ ->
-            ex
+exercise =
+    Kind.fold Tuple.first Tuple.first
 
 
 updateReps : String -> Reps a -> Reps a
@@ -55,56 +85,28 @@ updateWeight str rec =
     }
 
 
-emptySet : Exercise -> Set
-emptySet exercise =
-    case exercise.type_ of
-        Exercise.JustReps ->
-            makeJustReps exercise ""
-
-        Exercise.Weighted ->
-            makeWeighted exercise "" ""
-
-
-makeJustReps : Exercise -> String -> Set
-makeJustReps exercise reps =
-    JustReps exercise
-        { reps = stringToInt reps
-        , reps_input = reps
-        }
-
-
-makeWeighted : Exercise -> String -> String -> Set
-makeWeighted exercise reps weight =
-    Weighted exercise
-        { reps = stringToInt reps
-        , reps_input = reps
-        , weight = stringToFloat weight
-        , weight_input = weight
-        }
-
-
 isValid : Set -> Bool
 isValid set =
     case set of
-        JustReps _ { reps } ->
+        JustReps ( _, { reps } ) ->
             Utils.isJust reps
 
-        Weighted _ { reps, weight } ->
+        Weighted ( _, { reps, weight } ) ->
             Utils.isJust reps && Utils.isJust weight
 
 
 toString : Set -> Encode.Value
 toString set =
     case set of
-        JustReps { id } { reps_input } ->
+        JustReps ( exercise, { reps_input } ) ->
             Encode.object
-                [ ( "exercise_id", Encode.int id )
+                [ ( "exercise_id", Encode.int (Exercise.id exercise) )
                 , ( "reps", Encode.string reps_input )
                 ]
 
-        Weighted { id } { reps_input, weight_input } ->
+        Weighted ( exercise, { reps_input, weight_input } ) ->
             Encode.object
-                [ ( "exercise_id", Encode.int id )
+                [ ( "exercise_id", Encode.int (Exercise.id exercise) )
                 , ( "reps", Encode.string reps_input )
                 , ( "weight", Encode.string weight_input )
                 ]
@@ -122,9 +124,19 @@ decode exercises =
 
 decodeSetType : Exercise -> Decoder Set
 decodeSetType exercise =
-    case exercise.type_ of
-        Exercise.JustReps ->
-            Decode.map (makeJustReps exercise) (Decode.field "reps" Decode.string)
+    let
+        justReps reps =
+            JustReps ( exercise, makeJustReps reps )
 
-        Exercise.Weighted ->
-            Decode.map2 (makeWeighted exercise) (Decode.field "reps" Decode.string) (Decode.field "weight" Decode.string)
+        weighted reps weight =
+            Weighted ( exercise, makeWeighted reps weight )
+    in
+    Kind.fold
+        (always (Decode.map justReps (Decode.field "reps" Decode.string)))
+        (always
+            (Decode.map2 weighted
+                (Decode.field "reps" Decode.string)
+                (Decode.field "weight" Decode.string)
+            )
+        )
+        exercise

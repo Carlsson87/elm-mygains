@@ -2,8 +2,11 @@ port module Main exposing (..)
 
 import Array exposing (Array)
 import Colors
-import Data.Exercise as Exercise exposing (Exercise, ExerciseType(..))
+import Data.Exercise as Exercise exposing (Exercise)
+import Data.History as History
+import Data.Kind as Kind exposing (Kind)
 import Date exposing (Date)
+import Dict exposing (Dict)
 import Editor.Editor as Editor exposing (Workout)
 import Html exposing (Html, programWithFlags)
 import Html.Attributes exposing (class, disabled, min, pattern, style, type_, value)
@@ -13,7 +16,7 @@ import Icon
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Process
-import Requests exposing (createWorkout, getExercises, login, refreshToken)
+import Requests exposing (createWorkout, getExercises, getWorkouts, login, refreshToken)
 import Task
 import Time
 import Utils exposing (..)
@@ -30,29 +33,40 @@ port remember : ( String, String ) -> Cmd msg
 port forget : String -> Cmd msg
 
 
-rememberToken : String -> Cmd Msg
-rememberToken token =
-    remember ( "jwt", token )
 
-
-forgetToken : Cmd Msg
-forgetToken =
-    forget "jwt"
+-- Main
 
 
 main : Program Decode.Value Model Msg
 main =
-    programWithFlags
-        { init = init
-        , view = view
-        , update = update
-        , subscriptions = always Sub.none
-        }
+    programWithFlags { init = init, view = view, update = update, subscriptions = always Sub.none }
+
+
+
+-- Model
 
 
 type Model
-    = LoggedIn LoggedInState
-    | LoggedOut LoggedOutState
+    = LoggedOut LoggedOutState
+    | Loading LoadingState
+    | LoggedIn LoggedInState
+
+
+type alias LoggedOutState =
+    { email : String
+    , password : String
+    , logging_in : Bool
+    , error : Maybe String
+    , workout : Decode.Value
+    }
+
+
+type alias LoadingState =
+    { token : String
+    , exercises : Maybe (List Exercise)
+    , workout : Decode.Value
+    , date : Maybe Date
+    }
 
 
 type alias LoggedInState =
@@ -61,82 +75,19 @@ type alias LoggedInState =
     , workout : Workout
     , date : Date
     , sidebarIsOpen : Bool
-    , modal : Maybe (Modal.Modal { content : ModalContent })
+    , modal : Maybe (Modal.Modal ModalContent)
+    , history : Dict Int History.History
     }
 
 
-updateContent : ModalContent -> { a | content : ModalContent } -> { a | content : ModalContent }
-updateContent content modal =
-    { modal | content = content }
 
-
-type ModalContent
-    = WorkoutDone
-    | CreateExercise { name : String, type_ : Exercise.ExerciseType }
-
-
-makeLoggedInState : String -> Workout -> List Exercise -> Date -> LoggedInState
-makeLoggedInState token editor exercises date =
-    LoggedInState token exercises editor date False Nothing
-
-
-type alias LoggedOutState =
-    { email : String
-    , password : String
-    , logging_in : Bool
-    , error : Maybe String
-    }
-
-
-initialModel : Model
-initialModel =
-    LoggedOut (LoggedOutState "" "" False Nothing)
-
-
-init : Decode.Value -> ( Model, Cmd Msg )
-init flags =
-    let
-        token : Maybe (Task.Task Http.Error String)
-        token =
-            flags
-                |> Decode.decodeValue (Decode.field "api_token" Decode.string)
-                |> Result.map refreshToken
-                |> Result.toMaybe
-                |> Maybe.map Http.toTask
-
-        date : Task.Task x Date
-        date =
-            Date.now
-
-        exercises : String -> Task.Task Http.Error (List Exercise)
-        exercises =
-            getExercises >> Http.toTask
-
-        workout : List Exercise -> Workout
-        workout exs =
-            flags
-                |> Decode.decodeValue (Decode.field "workout" Decode.string)
-                |> Result.andThen (Editor.fromString exs)
-                |> Result.withDefault Editor.empty
-
-        makeLogin : List Exercise -> Date -> String -> LoggedInState
-        makeLogin exs date token =
-            makeLoggedInState token (workout exs) exs date
-
-        attemptLogin : String -> Task.Task Http.Error LoggedInState
-        attemptLogin token =
-            Task.map3 makeLogin (exercises token) date (Task.succeed token)
-    in
-    ( initialModel
-    , Maybe.map (Task.andThen attemptLogin) token
-        |> Maybe.map (Task.attempt (LoggedOutMsg << LoginCompleted))
-        |> Maybe.withDefault Cmd.none
-    )
+-- Msg
 
 
 type Msg
     = Noop
     | LoggedInMsg LoggedInAction
+    | LoadingMsg LoadingAction
     | LoggedOutMsg LoggedOutAction
 
 
@@ -151,41 +102,76 @@ type LoggedInAction
     | WorkoutMsg Editor.Msg
     | UpdateDate Date
     | SaveWorkoutFailed
-    | SaveExercise String ExerciseType
+    | SaveExercise String (Kind () ())
     | ExerciseSaved (Result Http.Error Exercise)
+
+
+type LoadingAction
+    = TokenRefreshSucceeded String
+    | TokenRefreshFailed
+    | LoadingData Date (List Exercise) Decode.Value
+    | LoadingDataFailed
 
 
 type LoggedOutAction
     = UpdateEmail String
     | UpdatePassword String
     | SendLoginRequest
-    | LoginCompleted (Result Http.Error LoggedInState)
+    | LoginSucceeded String
+    | LoginFailed
 
 
-saveWorkout : String -> Date -> Workout -> Cmd Msg
-saveWorkout token date workout =
+type ModalContent
+    = WorkoutDone
+    | CreateExercise { name : String, type_ : Kind () () }
+
+
+
+-- Init
+
+
+init : Decode.Value -> ( Model, Cmd Msg )
+init flags =
     let
-        encoded =
-            Editor.encodeWorkout date workout
+        workout =
+            Decode.decodeValue (Decode.field "workout" Decode.value) flags
+                |> Result.withDefault (Encode.string "")
     in
-    Maybe.map (createWorkout token >> Http.toTask) encoded
-        |> Maybe.withDefault (Task.succeed 0)
-        |> Task.attempt
-            (Result.map
-                (always (LoggedInMsg WorkoutSaved))
-                >> Result.withDefault (LoggedInMsg SaveWorkoutFailed)
+    case Decode.decodeValue (Decode.field "api_token" Decode.string) flags of
+        Ok token ->
+            ( Loading (LoadingState token Nothing workout Nothing)
+            , refreshToken token
+                |> Http.toTask
+                |> Task.attempt (Result.map TokenRefreshSucceeded >> Result.withDefault TokenRefreshFailed)
+                |> Cmd.map LoadingMsg
             )
 
-
-rememberWorkout : Workout -> Cmd Msg
-rememberWorkout workout =
-    remember
-        ( "workout", Editor.toString workout )
+        Err _ ->
+            ( LoggedOut (LoggedOutState "" "" False Nothing workout), Cmd.none )
 
 
-forgetWorkout : Cmd Msg
-forgetWorkout =
-    forget "workout"
+
+-- Update
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case ( msg, model ) of
+        ( LoggedInMsg msg, LoggedIn model ) ->
+            loggedInUpdate msg model
+
+        ( LoggedOutMsg msg, LoggedOut model ) ->
+            loggedOutUpdate msg model
+
+        ( LoadingMsg msg, Loading model ) ->
+            loadingUpdate msg model
+
+        ( _, _ ) ->
+            let
+                log =
+                    Debug.log "Unrecognized msg model combo" ( msg, model )
+            in
+            ( model, Cmd.none )
 
 
 loggedInUpdate : LoggedInAction -> LoggedInState -> ( Model, Cmd Msg )
@@ -199,14 +185,14 @@ loggedInUpdate msg model =
             in
             ( LoggedIn { model | workout = workout }
             , Cmd.batch
-                [ rememberWorkout workout
+                [ remember ( "workout", Editor.toString workout )
                 , Cmd.map (WorkoutMsg >> LoggedInMsg) cmd
                 ]
             )
 
         -- MODALS
         OpenModal content ->
-            ( LoggedIn { model | modal = Just { state = Modal.IsOpening, content = content } }
+            ( LoggedIn { model | modal = Just (Modal.Modal Modal.IsOpening content) }
             , Process.sleep 17
                 |> Task.perform (always (LoggedInMsg (UpdateModalState Modal.IsOpen)))
             )
@@ -220,7 +206,7 @@ loggedInUpdate msg model =
                     ( LoggedIn { model | modal = Maybe.map (Modal.updateState state) model.modal }, Cmd.none )
 
         UpdateModal content ->
-            ( LoggedIn { model | modal = Maybe.map (updateContent content) model.modal }, Cmd.none )
+            ( LoggedIn { model | modal = Maybe.map (Modal.updateContent content) model.modal }, Cmd.none )
 
         CloseModal ->
             ( LoggedIn { model | modal = Maybe.map (Modal.updateState Modal.IsClosing) model.modal }, Cmd.none )
@@ -229,10 +215,21 @@ loggedInUpdate msg model =
             ( LoggedIn { model | sidebarIsOpen = not model.sidebarIsOpen }, Cmd.none )
 
         SaveWorkout ->
-            ( LoggedIn model, saveWorkout model.token model.date model.workout )
+            ( LoggedIn model
+            , case Editor.encodeWorkout model.date model.workout of
+                Just workout ->
+                    createWorkout model.token workout
+                        |> Http.toTask
+                        |> Task.map (always WorkoutSaved)
+                        |> Task.attempt (Result.withDefault SaveWorkoutFailed)
+                        |> Cmd.map LoggedInMsg
+
+                Nothing ->
+                    Cmd.none
+            )
 
         WorkoutSaved ->
-            ( LoggedIn { model | workout = Editor.empty, modal = Nothing }, forgetWorkout )
+            ( LoggedIn { model | workout = Editor.empty, modal = Nothing }, forget "workout" )
 
         SaveWorkoutFailed ->
             ( LoggedIn model, Cmd.none )
@@ -254,6 +251,47 @@ loggedInUpdate msg model =
             ( LoggedIn model, Cmd.none )
 
 
+loadData : String -> Cmd Msg
+loadData token =
+    Task.map3 LoadingData
+        Date.now
+        (Http.toTask (getExercises token))
+        (Http.toTask (getWorkouts token))
+        |> Task.attempt (Result.withDefault LoadingDataFailed)
+        |> Cmd.map LoadingMsg
+
+
+loadingUpdate : LoadingAction -> LoadingState -> ( Model, Cmd Msg )
+loadingUpdate msg model =
+    case msg of
+        TokenRefreshSucceeded token ->
+            ( Loading { model | token = token }
+            , loadData token
+            )
+
+        LoadingData date exercises workouts ->
+            ( LoggedIn
+                { token = model.token
+                , exercises = exercises
+                , workout =
+                    Decode.decodeValue Decode.string model.workout
+                        |> Result.andThen (Editor.fromString exercises)
+                        |> Result.withDefault Editor.empty
+                , date = date
+                , sidebarIsOpen = False
+                , modal = Nothing
+                , history = Debug.log "History" (History.decoder exercises workouts)
+                }
+            , Cmd.none
+            )
+
+        LoadingDataFailed ->
+            ( LoggedOut (LoggedOutState "" "" False (Just "Could not load your exercises, log in to try again.") model.workout), Cmd.none )
+
+        TokenRefreshFailed ->
+            ( LoggedOut (LoggedOutState "" "" False (Just "Your session has expired, you need to log back in.") model.workout), Cmd.none )
+
+
 loggedOutUpdate : LoggedOutAction -> LoggedOutState -> ( Model, Cmd Msg )
 loggedOutUpdate msg model =
     case msg of
@@ -264,39 +302,28 @@ loggedOutUpdate msg model =
             ( LoggedOut { model | password = str }, Cmd.none )
 
         SendLoginRequest ->
-            let
-                makeState token =
-                    Task.map2 (makeLoggedInState token Editor.empty) (Http.toTask (getExercises token)) Date.now
+            ( LoggedOut { model | logging_in = True }
+            , login model.email model.password
+                |> Http.toTask
+                |> Task.map LoginSucceeded
+                |> Task.attempt (Result.withDefault LoginFailed)
+                |> Cmd.map LoggedOutMsg
+            )
 
-                loginTask =
-                    login model.email model.password
-                        |> Http.toTask
-                        |> Task.andThen makeState
-            in
-            ( LoggedOut { model | logging_in = True }, Task.attempt (LoginCompleted >> LoggedOutMsg) loginTask )
+        LoginSucceeded token ->
+            ( Loading (LoadingState token Nothing model.workout Nothing)
+            , Cmd.batch
+                [ remember ( "jwt", token )
+                , loadData token
+                ]
+            )
 
-        LoginCompleted (Ok model) ->
-            ( LoggedIn model, rememberToken model.token )
-
-        LoginCompleted (Err _) ->
+        LoginFailed ->
             ( LoggedOut { model | error = Just "Cant log in" }, Cmd.none )
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    case ( msg, model ) of
-        ( LoggedInMsg msg, LoggedIn model ) ->
-            loggedInUpdate msg model
 
-        ( LoggedOutMsg msg, LoggedOut model ) ->
-            loggedOutUpdate msg model
-
-        ( _, _ ) ->
-            let
-                log =
-                    Debug.log "Unrecognized msg model combo" ( msg, model )
-            in
-            ( model, Cmd.none )
+-- View
 
 
 view : Model -> Html Msg
@@ -305,6 +332,13 @@ view model =
         LoggedOut state ->
             Html.map LoggedOutMsg
                 (loginForm state)
+
+        Loading state ->
+            Html.h1
+                [ class "color-dark text-center mt-xl"
+                ]
+                [ Html.text "Loading..."
+                ]
 
         LoggedIn state ->
             Html.map LoggedInMsg
@@ -317,6 +351,15 @@ view model =
                 )
 
 
+
+---------------------
+
+
+updateContent : ModalContent -> { a | content : ModalContent } -> { a | content : ModalContent }
+updateContent content modal =
+    { modal | content = content }
+
+
 layer : Int -> List (Html msg) -> Html msg
 layer z =
     Html.div
@@ -325,11 +368,11 @@ layer z =
         ]
 
 
-modals : LoggedInState -> Modal.Modal { content : ModalContent } -> List (Html LoggedInAction)
+modals : LoggedInState -> Modal.Modal ModalContent -> List (Html LoggedInAction)
 modals model modal =
-    case modal.content of
+    case Modal.content modal of
         WorkoutDone ->
-            [ Modal.view modal.state
+            [ Modal.view modal
                 UpdateModalState
                 [ Modal.title "Save workout"
                 , Modal.body
@@ -346,25 +389,23 @@ modals model modal =
         CreateExercise form ->
             let
                 isReps =
-                    case form.type_ of
-                        JustReps ->
-                            True
-
-                        Weighted ->
-                            False
+                    Kind.fold
+                        (always True)
+                        (always False)
+                        form.type_
 
                 setName str =
                     UpdateModal (CreateExercise { form | name = str })
             in
-            [ Modal.view modal.state
+            [ Modal.view modal
                 UpdateModalState
                 [ Modal.title "Create Exercise"
                 , Modal.body
                     [ Form.label "Name"
                     , Form.input "text" form.name setName
                     , Form.label "Type"
-                    , Form.radio isReps "Reps" (UpdateModal (CreateExercise { form | type_ = JustReps }))
-                    , Form.radio (not isReps) "Reps × Weight" (UpdateModal (CreateExercise { form | type_ = Weighted }))
+                    , Form.radio isReps "Reps" (UpdateModal (CreateExercise { form | type_ = Kind.JustReps () }))
+                    , Form.radio (not isReps) "Reps × Weight" (UpdateModal (CreateExercise { form | type_ = Kind.Weighted () }))
                     ]
                 , Modal.footer
                     [ Form.button "save" (SaveExercise form.name form.type_)
@@ -422,7 +463,8 @@ loginForm { email, password, error } =
         ]
         [ Modal.title "Sign in"
         , Modal.body
-            [ Form.label "Email"
+            [ Maybe.withDefault (Html.text "") (Maybe.map Form.info error)
+            , Form.label "Email"
             , Form.email email UpdateEmail
             , Form.label "Password"
             , Form.password password UpdatePassword
@@ -434,7 +476,7 @@ loginForm { email, password, error } =
 
 
 sidebar : LoggedInState -> Html LoggedInAction
-sidebar { exercises, workout, sidebarIsOpen } =
+sidebar { exercises, workout, sidebarIsOpen, history } =
     Html.div
         []
         [ Html.div
@@ -471,8 +513,8 @@ sidebar { exercises, workout, sidebarIsOpen } =
                 ]
                 [ Html.text "Exercises"
                 ]
-            , Html.map WorkoutMsg (Editor.exerciseList exercises)
-            , Form.blockButton "Create exercise" (OpenModal (CreateExercise { name = "", type_ = JustReps }))
+            , Html.map WorkoutMsg (Editor.exerciseList exercises history)
+            , Form.blockButton "Create exercise" (OpenModal (CreateExercise { name = "", type_ = Kind.JustReps () }))
             ]
         ]
 
